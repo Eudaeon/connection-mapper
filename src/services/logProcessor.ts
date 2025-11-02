@@ -14,7 +14,7 @@ async function geocodeIPs(ips: string[], onProgress: (message: string) => void):
     onProgress(`Geocoding ${processedCount + 1}-${processedCount + chunk.length} of ${ips.length} IPs...`);
     try {
       const payload = chunk.map(ip => ({ query: ip, fields: "query,lon,lat" }));
-      const response = await fetch('http://ip-api.com/batch', {
+      const response = await fetch('https://ip-geolocation-api.eudaeon.workers.dev/', {
         method: 'POST',
         body: JSON.stringify(payload),
       });
