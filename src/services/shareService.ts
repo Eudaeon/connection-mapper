@@ -1,13 +1,17 @@
 import pako from 'pako';
-import type { UserMapData } from '../types';
+import type { UserMapData } from '../types/index';
 
 export function generateShareUrl(data: UserMapData[]): string {
   try {
     const json = JSON.stringify(data);
     const compressed = pako.deflate(json);
-    const binaryString = Array.from(compressed as Uint8Array, (byte: number) => String.fromCharCode(byte)).join('');
+    const binaryString = Array.from(compressed as Uint8Array, (byte: number) =>
+      String.fromCharCode(byte)
+    ).join('');
     const base64 = btoa(binaryString);
-    return `${window.location.origin}${window.location.pathname}?data=${encodeURIComponent(base64)}`;
+    return `${window.location.origin}${
+      window.location.pathname
+    }?data=${encodeURIComponent(base64)}`;
   } catch (e) {
     console.error('Error generating share URL:', e);
     return '';
@@ -29,7 +33,7 @@ export function loadDataFromUrl(): UserMapData[] | null {
     for (let i = 0; i < binaryString.length; i++) {
       bytes[i] = binaryString.charCodeAt(i);
     }
-    
+
     const decompressed = pako.inflate(bytes, { to: 'string' });
     const jsonData = JSON.parse(decompressed);
     // Hydrate timestamp strings back into Date objects
@@ -37,14 +41,25 @@ export function loadDataFromUrl(): UserMapData[] | null {
       for (const user of jsonData) {
         if (user?.allConnections && Array.isArray(user.allConnections)) {
           for (const conn of user.allConnections) {
-            if (conn && (typeof conn.timestamp === 'string' || typeof conn.timestamp === 'number')) {
+            if (
+              conn &&
+              (typeof conn.timestamp === 'string' ||
+                typeof conn.timestamp === 'number')
+            ) {
               conn.timestamp = new Date(conn.timestamp);
             }
           }
         }
 
-        if (user?.latestConnection && user.latestConnection.timestamp && (typeof user.latestConnection.timestamp === 'string' || typeof user.latestConnection.timestamp === 'number')) {
-          user.latestConnection.timestamp = new Date(user.latestConnection.timestamp);
+        if (
+          user?.latestConnection &&
+          user.latestConnection.timestamp &&
+          (typeof user.latestConnection.timestamp === 'string' ||
+            typeof user.latestConnection.timestamp === 'number')
+        ) {
+          user.latestConnection.timestamp = new Date(
+            user.latestConnection.timestamp
+          );
         }
       }
     }

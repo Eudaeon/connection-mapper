@@ -1,18 +1,18 @@
 function fallbackCopyToClipboard(text: string) {
-  const textArea = document.createElement("textarea");
+  const textArea = document.createElement('textarea');
   textArea.value = text;
-  
-  textArea.style.position = "absolute";
-  textArea.style.left = "-9999px";
-  textArea.setAttribute("readonly", "");
+
+  textArea.style.position = 'absolute';
+  textArea.style.left = '-9999px';
+  textArea.setAttribute('readonly', '');
 
   document.body.appendChild(textArea);
   textArea.select();
-  
+
   try {
     document.execCommand('copy');
   } catch (err) {
-    console.error("Fallback clipboard copy failed:", err);
+    console.error('Fallback clipboard copy failed:', err);
   }
 
   document.body.removeChild(textArea);
@@ -20,8 +20,8 @@ function fallbackCopyToClipboard(text: string) {
 
 export function copyToClipboard(text: string) {
   if (navigator.clipboard && window.isSecureContext) {
-    navigator.clipboard.writeText(text).catch(err => {
-      console.warn("Async clipboard copy failed, falling back.", err);
+    navigator.clipboard.writeText(text).catch((err) => {
+      console.warn('Async clipboard copy failed, falling back.', err);
       fallbackCopyToClipboard(text);
     });
   } else {

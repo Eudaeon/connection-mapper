@@ -2,6 +2,20 @@ export interface LogEntry {
   user: string;
   ip: string;
   timestamp: Date;
+
+  // Fields for Sign-in Log
+  application?: string;
+  mfaRequirement?: string;
+  mfaMethod?: string;
+
+  // Fields for Audit Log
+  userAgent?: string;
+
+  // Shared fields (parsed from both log types)
+  os?: string;
+  browser?: string;
+  compliant?: string;
+  managed?: string;
 }
 
 export interface GeolocationData {

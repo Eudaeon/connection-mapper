@@ -1,7 +1,6 @@
-import { createApp } from 'vue'
-import './style.css'
-import 'leaflet/dist/leaflet.css'
-import App from './App.vue'
+import { createApp } from 'vue';
+import 'leaflet/dist/leaflet.css';
+import './styles/main.css';
+import App from './views/App.vue';
 
-createApp(App).mount('#app')
-
+createApp(App).mount('#app');
