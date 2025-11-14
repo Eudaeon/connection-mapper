@@ -95,9 +95,9 @@ export async function processLogFile(
     throw new Error('Could not geocode any IP addresses from the file.');
   }
 
-  const users = [...new Set(connections.map((c) => c.user))].filter(
-    (user): user is string => user !== undefined
-  );
+  const users = [...new Set(connections.map((c) => c.user))]
+    .filter((user): user is string => user !== undefined)
+    .sort((a, b) => a.localeCompare(b));
   const userColors = assignColors(users.length);
   const userMap = new Map<string, UserMapData>();
 

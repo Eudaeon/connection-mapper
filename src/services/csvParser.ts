@@ -19,23 +19,25 @@ function findInDevice(
   return prop?.Value;
 }
 
-const USER_HEADERS = ["Nom d'utilisateur"];
-const IP_HEADERS = ['Adresse IP'];
+const USER_HEADERS = ["Nom d'utilisateur", 'Username'];
+const IP_HEADERS = ['Adresse IP', 'IP address'];
 const DATE_HEADERS = ['Date (UTC)'];
 const APP_HEADERS = ['Application'];
-const COMPLIANT_HEADERS = ['Conforme'];
-const MANAGED_HEADERS = ['Géré'];
-const OS_HEADERS = ["Système d'exploitation"];
-const BROWSER_HEADERS = ['Navigateur'];
-const UA_HEADERS = ['Agent utilisateur'];
+const COMPLIANT_HEADERS = ['Conforme', 'Compliant'];
+const MANAGED_HEADERS = ['Géré', 'Managed'];
+const OS_HEADERS = ["Système d'exploitation", 'Operating System'];
+const BROWSER_HEADERS = ['Navigateur', 'Browser'];
+const UA_HEADERS = ['Agent utilisateur', 'User agent'];
 const MFA_REQ_HEADERS = [
   'Exigence d’authentification',
-  "Exigence d'authentification",
+  'Authentication requirement',
 ];
 const MFA_METHOD_HEADERS = [
   'Méthode d’authentification multifacteur',
-  "Méthode d'authentification multifacteur",
+  'Multifactor authentication auth method',
 ];
+const STATUS_HEADERS = ['Statut', 'Status'];
+const SUCCESS_STATUS_VALUES = ['Opération réussie', 'Success'];
 
 function isValidEmail(email: string): boolean {
   const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -125,6 +127,10 @@ export function parseCSV(fileContent: string): LogEntry[] {
       try {
         const auditData = JSON.parse(auditDataStr);
 
+        if (auditData.Operation !== 'UserLoggedIn') {
+          continue;
+        }
+
         const extendedProps = auditData.ExtendedProperties || [];
         const deviceProps = auditData.DeviceProperties || [];
 
@@ -165,6 +171,7 @@ export function parseCSV(fileContent: string): LogEntry[] {
     const mfaMethodIndex = headers.findIndex((h) =>
       MFA_METHOD_HEADERS.includes(h)
     );
+    const statusIndex = headers.findIndex((h) => STATUS_HEADERS.includes(h));
 
     if (userIndex !== -1 && ipIndex !== -1 && dateIndex !== -1) {
       for (let i = 1; i < lines.length; i++) {
@@ -178,6 +185,13 @@ export function parseCSV(fileContent: string): LogEntry[] {
         const userId = fields[userIndex]?.trim();
         const ip = fields[ipIndex]?.trim();
         const timestampStr = fields[dateIndex]?.trim();
+
+        if (statusIndex !== -1) {
+          const status = fields[statusIndex]?.trim();
+          if (!SUCCESS_STATUS_VALUES.includes(status ?? '')) {
+            continue;
+          }
+        }
 
         if (!userId || !isValidEmail(userId) || !ip || !timestampStr) continue;
 

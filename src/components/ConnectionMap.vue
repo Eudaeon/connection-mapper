@@ -41,7 +41,7 @@ function createMarkerIcon(ipData: IpData): L.DivIcon {
     ? '#e5e7eb'
     : '#374151';
 
-  let svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.7));">`;
+  let svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">`;
 
   if (count === 1) {
     svg += `<circle cx="${center}" cy="${center}" r="${radius}" fill="${uniqueColors[0]}" stroke="${stroke}" stroke-width="1" />`;

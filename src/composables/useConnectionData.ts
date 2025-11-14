@@ -100,18 +100,7 @@ function passesCategoryFilters(conn: LogEntry): boolean {
 }
 
 function setData(processedData: UserMapData[]) {
-  const sortedData = processedData.sort((a, b) => {
-    const [localA = '', domainA = ''] = a.user.split('@');
-    const [localB = '', domainB = ''] = b.user.split('@');
-
-    if (domainA < domainB) return -1;
-    if (domainA > domainB) return 1;
-
-    if (localA < localB) return -1;
-    if (localA > localB) return 1;
-
-    return 0;
-  });
+  const sortedData = processedData.sort((a, b) => a.user.localeCompare(b.user));
 
   allUsers.value = sortedData;
   selectedUsers.value = new Set(sortedData.map((u) => u.user));
