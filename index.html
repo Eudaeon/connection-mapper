@@ -12,7 +12,6 @@
         const prefersDark =
           window.matchMedia &&
           window.matchMedia('(prefers-color-scheme: dark)').matches;
-        // If saved theme is 'dark', or no theme is saved AND user prefers dark, add 'dark' class
         if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
           document.documentElement.classList.add('dark');
         }

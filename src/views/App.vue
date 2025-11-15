@@ -7,9 +7,7 @@ import UserPanel from '../components/UserPanel.vue';
 import FilterPanel from '../components/FilterPanel.vue';
 import TimelinePanel from '../components/TimelinePanel.vue';
 
-// Initialize the composable to trigger its onMounted hook
-// and get the reactive data
-const { filteredUsers, isLoading } = useConnectionData();
+const { filteredUsers, isLoading, statusMessage } = useConnectionData();
 </script>
 
 <template>
@@ -20,7 +18,13 @@ const { filteredUsers, isLoading } = useConnectionData();
     <UserPanel />
     <FilterPanel />
     <TimelinePanel />
-    <div v-if="isLoading" class="loading-overlay"></div>
+
+    <div v-if="isLoading" class="loading-overlay">
+      <div class="loader-content">
+        <div class="progress-ring"></div>
+        <span class="loading-status">{{ statusMessage }}</span>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -37,7 +41,48 @@ const { filteredUsers, isLoading } = useConnectionData();
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 100; /* Must be above map but below panels */
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text);
+  backdrop-filter: blur(4px);
+}
+
+.loader-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem;
+  background-color: var(--color-panel-bg);
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px var(--color-panel-shadow);
+}
+
+.loading-status {
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.progress-ring {
+  width: 50px;
+  height: 50px;
+  border: 5px solid var(--color-border);
+  border-top-color: var(--color-slider-fill);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

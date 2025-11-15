@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useConnectionData } from '../composables/useConnectionData';
 import { ChevronLeft, ChevronRight } from 'lucide-vue-next';
 
@@ -11,6 +11,11 @@ const {
   toggleSelectAll,
 } = useConnectionData();
 const isUserPanelCollapsed = ref(true);
+
+const isPartiallySelected = computed(() => {
+  if (allUsers.value.length === 0) return false;
+  return !allUsersSelected.value && selectedUsers.value.size > 0;
+});
 </script>
 
 <template>
@@ -44,10 +49,11 @@ const isUserPanelCollapsed = ref(true);
             id="select-all-users"
             type="checkbox"
             :checked="allUsersSelected"
-            @change="toggleSelectAll"
+            :indeterminate.prop="isPartiallySelected"
+            @click="toggleSelectAll"
           />
           <label for="select-all-users" title="Select/Deselect All Users">
-            Select All ({{ selectedUsers.size }})
+            Select All <span>({{ selectedUsers.size }})</span>
           </label>
         </div>
         <ul class="user-list">
@@ -83,7 +89,7 @@ const isUserPanelCollapsed = ref(true);
 
 #user-panel {
   padding: 0.5rem 0.75rem;
-  width: 200px;
+  width: 220px;
   max-height: 60vh;
   display: flex;
   flex-direction: column;
@@ -123,6 +129,12 @@ h4 {
   cursor: pointer;
   user-select: none;
 }
+
+.select-all-container label span {
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
 .select-all-container input[type='checkbox'] {
   cursor: pointer;
   flex-shrink: 0;
@@ -164,11 +176,10 @@ h4 {
 }
 
 .collapse-toggle {
-  /* Position relative to the wrapper */
   position: absolute;
   z-index: 11;
-  width: 24px; /* Narrower width */
-  height: 80px; /* Taller height for easier clicking */
+  width: 24px;
+  height: 80px;
   padding: 0;
   display: grid;
   place-items: center;
@@ -187,17 +198,15 @@ h4 {
 .collapse-toggle-right {
   top: 50%;
   transform: translateY(-50%);
-  /* Positioned relative to the wrapper's edge */
   left: 100%;
-  margin-left: 0; /* Removed overlap */
-  /* Round the right corners */
+  margin-left: 0;
   border-top-right-radius: 0.5rem;
   border-bottom-right-radius: 0.5rem;
 }
 
 #user-panel-wrapper:has(#user-panel) .collapse-toggle-right {
   left: auto;
-  right: -24px; /* Match width */
+  right: -24px;
 }
 
 #user-panel-wrapper:has(#user-panel) {

@@ -36,7 +36,7 @@ export function loadDataFromUrl(): UserMapData[] | null {
 
     const decompressed = pako.inflate(bytes, { to: 'string' });
     const jsonData = JSON.parse(decompressed);
-    // Hydrate timestamp strings back into Date objects
+
     if (Array.isArray(jsonData)) {
       for (const user of jsonData) {
         if (user?.allConnections && Array.isArray(user.allConnections)) {
@@ -64,12 +64,10 @@ export function loadDataFromUrl(): UserMapData[] | null {
       }
     }
 
-    // Clear URL params after loading
     window.history.replaceState({}, document.title, window.location.pathname);
     return jsonData as UserMapData[];
   } catch (e) {
     console.error('Error loading shared map data:', e);
-    // Clear URL params if data is invalid
     window.history.replaceState({}, document.title, window.location.pathname);
     return null;
   }

@@ -30,6 +30,46 @@ const endRange = ref(0);
 const filterableCategories = ref<Map<string, Set<string>>>(new Map());
 const selectedFilters = ref<Map<string, Set<string>>>(new Map());
 
+const ONE_HOUR_MS = 1000 * 60 * 60;
+const ONE_DAY_MS = ONE_HOUR_MS * 24;
+
+const isHourlyRange = computed(() => {
+  const range = maxTimestamp.value - minTimestamp.value;
+  return range > 0 && range < ONE_DAY_MS;
+});
+
+const snapStep = computed(() => {
+  return isHourlyRange.value ? ONE_HOUR_MS : ONE_DAY_MS;
+});
+
+const roundedMinTimestamp = computed(() => {
+  if (minTimestamp.value === 0) return 0;
+  const date = new Date(minTimestamp.value);
+  if (isHourlyRange.value) {
+    date.setMinutes(0, 0, 0);
+  } else {
+    date.setHours(0, 0, 0, 0);
+  }
+  return date.getTime();
+});
+
+const roundedMaxTimestamp = computed(() => {
+  if (maxTimestamp.value === 0) return 0;
+  const date = new Date(maxTimestamp.value);
+  if (isHourlyRange.value) {
+    date.setMinutes(0, 0, 0);
+    if (date.getTime() < maxTimestamp.value) {
+      date.setTime(date.getTime() + ONE_HOUR_MS);
+    }
+  } else {
+    date.setHours(0, 0, 0, 0);
+    if (date.getTime() < maxTimestamp.value) {
+      date.setTime(date.getTime() + ONE_DAY_MS);
+    }
+  }
+  return date.getTime();
+});
+
 function initializeFilters(data: UserMapData[]) {
   const discoveredCategories = new Map<string, Set<string>>();
   for (const user of data) {
@@ -66,21 +106,21 @@ function initializeTimeline(data: UserMapData[]) {
   if (data.length === 0) {
     minTimestamp.value = 0;
     maxTimestamp.value = 0;
-    startRange.value = 0;
-    endRange.value = 0;
-    return;
+  } else {
+    const allTimes = data.flatMap((u) =>
+      u.allConnections.map((c) => c.timestamp.getTime())
+    );
+    if (allTimes.length === 0) {
+      minTimestamp.value = 0;
+      maxTimestamp.value = 0;
+    } else {
+      minTimestamp.value = Math.min(...allTimes);
+      maxTimestamp.value = Math.max(...allTimes);
+    }
   }
-  const allTimes = data.flatMap((u) =>
-    u.allConnections.map((c) => c.timestamp.getTime())
-  );
-  if (allTimes.length === 0) {
-    initializeTimeline([]);
-    return;
-  }
-  minTimestamp.value = Math.min(...allTimes);
-  maxTimestamp.value = Math.max(...allTimes);
-  startRange.value = minTimestamp.value;
-  endRange.value = maxTimestamp.value;
+
+  startRange.value = roundedMinTimestamp.value;
+  endRange.value = roundedMaxTimestamp.value;
 }
 
 function passesCategoryFilters(conn: LogEntry): boolean {
@@ -141,9 +181,12 @@ const sliderFillStyle = computed(() => {
   if (maxTimestamp.value === minTimestamp.value) {
     return { left: '0%', right: '0%' };
   }
-  const total = maxTimestamp.value - minTimestamp.value;
-  const leftPercent = ((startRange.value - minTimestamp.value) / total) * 100;
-  const rightPercent = ((endRange.value - minTimestamp.value) / total) * 100;
+  const total = roundedMaxTimestamp.value - roundedMinTimestamp.value;
+  if (total === 0) return { left: '0%', right: '0%' };
+  const leftPercent =
+    ((startRange.value - roundedMinTimestamp.value) / total) * 100;
+  const rightPercent =
+    ((endRange.value - roundedMinTimestamp.value) / total) * 100;
   return {
     left: `${leftPercent}%`,
     right: `${100 - rightPercent}%`,
@@ -233,6 +276,21 @@ export function useConnectionData() {
     }
   }
 
+  function toggleSelectAllFilterCategory(category: string) {
+    const newSelectedFilters = new Map(selectedFilters.value);
+    const allValues = filterableCategories.value.get(category);
+    const selectedValues = selectedFilters.value.get(category);
+
+    if (!allValues || !selectedValues) return;
+
+    if (selectedValues.size === allValues.size) {
+      newSelectedFilters.set(category, new Set());
+    } else {
+      newSelectedFilters.set(category, new Set(allValues));
+    }
+    selectedFilters.value = newSelectedFilters;
+  }
+
   function onStartChange() {
     if (startRange.value > endRange.value) {
       endRange.value = startRange.value;
@@ -264,7 +322,14 @@ export function useConnectionData() {
 
   function formatDate(timestamp: number): string {
     if (timestamp === 0) return '---';
-    return new Date(timestamp).toLocaleDateString();
+    const date = new Date(timestamp);
+    if (isHourlyRange.value) {
+      return date.toLocaleTimeString(undefined, {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    }
+    return date.toLocaleDateString();
   }
 
   onMounted(loadInitialData);
@@ -279,6 +344,8 @@ export function useConnectionData() {
     selectedUsers,
     minTimestamp,
     maxTimestamp,
+    roundedMinTimestamp,
+    roundedMaxTimestamp,
     startRange,
     endRange,
     filterableCategories,
@@ -289,10 +356,12 @@ export function useConnectionData() {
     handleFileChange,
     shareMap,
     toggleFilter,
+    toggleSelectAllFilterCategory,
     onStartChange,
     onEndChange,
     toggleUser,
     toggleSelectAll,
     formatDate,
+    snapStep,
   };
 }

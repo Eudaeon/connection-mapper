@@ -1,4 +1,4 @@
-import { ref, watchEffect, onMounted } from 'vue';
+import { ref, watchEffect } from 'vue';
 
 const isDarkMode = ref(false);
 
@@ -18,6 +18,8 @@ export function useTheme() {
     isDarkMode.value = !isDarkMode.value;
   }
 
+  initializeTheme();
+
   watchEffect(() => {
     if (isDarkMode.value) {
       document.documentElement.classList.add('dark');
@@ -26,10 +28,6 @@ export function useTheme() {
       document.documentElement.classList.remove('dark');
       localStorage.setItem('theme', 'light');
     }
-  });
-
-  onMounted(() => {
-    initializeTheme();
   });
 
   return {

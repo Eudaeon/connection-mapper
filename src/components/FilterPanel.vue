@@ -3,8 +3,12 @@ import { ref } from 'vue';
 import { useConnectionData } from '../composables/useConnectionData';
 import { ChevronLeft, ChevronRight } from 'lucide-vue-next';
 
-const { filterableCategories, selectedFilters, toggleFilter } =
-  useConnectionData();
+const {
+  filterableCategories,
+  selectedFilters,
+  toggleFilter,
+  toggleSelectAllFilterCategory,
+} = useConnectionData();
 const isFilterPanelCollapsed = ref(true);
 
 const PRETTY_NAMES: Record<string, string> = {
@@ -24,6 +28,22 @@ function prettifyCategory(category: string): string {
 
 function sortedValues(values: Set<string>): string[] {
   return [...values].sort((a, b) => a.localeCompare(b));
+}
+
+function getSelectedCount(category: string): number {
+  return selectedFilters.value.get(category)?.size ?? 0;
+}
+
+function isAllSelected(category: string): boolean {
+  const total = filterableCategories.value.get(category)?.size ?? 0;
+  const selected = getSelectedCount(category);
+  return total > 0 && selected === total;
+}
+
+function isPartiallySelected(category: string): boolean {
+  const total = filterableCategories.value.get(category)?.size ?? 0;
+  const selected = getSelectedCount(category);
+  return selected > 0 && selected < total;
 }
 </script>
 
@@ -52,7 +72,7 @@ function sortedValues(values: Set<string>): string[] {
       :leave="{ opacity: 0, x: 50, transition: { duration: 150 } }"
     >
       <div class="panel-content">
-        <h4>Filtres</h4>
+        <h4>Filters</h4>
         <div class="filter-categories-list">
           <details
             v-for="[category, values] in filterableCategories"
@@ -61,7 +81,22 @@ function sortedValues(values: Set<string>): string[] {
             open
           >
             <summary>
-              {{ prettifyCategory(category) }}
+              <div class="category-summary-content">
+                <input
+                  :id="`select-all-${category}`"
+                  type="checkbox"
+                  :checked="isAllSelected(category)"
+                  :indeterminate.prop="isPartiallySelected(category)"
+                  @click.stop="toggleSelectAllFilterCategory(category)"
+                />
+                <label
+                  :for="`select-all-${category}`"
+                  @click.stop="toggleSelectAllFilterCategory(category)"
+                >
+                  {{ prettifyCategory(category) }}
+                  <span> ({{ getSelectedCount(category) }}) </span>
+                </label>
+              </div>
             </summary>
             <ul class="filter-list">
               <li
@@ -98,7 +133,7 @@ function sortedValues(values: Set<string>): string[] {
 
 #filter-panel {
   padding: 0.5rem 0.75rem;
-  width: 200px;
+  width: 225px;
   max-height: 60vh;
   display: flex;
   flex-direction: column;
@@ -139,9 +174,32 @@ h4 {
   user-select: none;
 }
 
+.category-summary-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.category-summary-content input[type='checkbox'] {
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.category-summary-content label {
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.category-summary-content label span {
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
 .filter-list {
   list-style: none;
-  padding-left: 10px;
+  padding-left: 14px;
   margin: 0 0 10px 0;
 }
 
@@ -170,8 +228,8 @@ h4 {
 .collapse-toggle {
   position: absolute;
   z-index: 11;
-  width: 24px; /* Narrower width */
-  height: 80px; /* Taller height */
+  width: 24px;
+  height: 80px;
   padding: 0;
   display: grid;
   place-items: center;
@@ -191,15 +249,14 @@ h4 {
   top: 50%;
   transform: translateY(-50%);
   right: 100%;
-  margin-right: 0; /* Removed overlap */
-  /* Round the left corners */
+  margin-right: 0;
   border-top-left-radius: 0.5rem;
   border-bottom-left-radius: 0.5rem;
 }
 
 #filter-panel-wrapper:has(#filter-panel) .collapse-toggle-left {
   right: auto;
-  left: -24px; /* Match width */
+  left: -24px;
 }
 
 #filter-panel-wrapper:has(#filter-panel) {

@@ -2,20 +2,28 @@
 import { ref } from 'vue';
 import { useConnectionData } from '../composables/useConnectionData';
 import { ChevronDown, ChevronUp } from 'lucide-vue-next';
+import Slider from './Slider.vue';
 
 const {
   allUsers,
-  minTimestamp,
-  maxTimestamp,
+  roundedMinTimestamp,
+  roundedMaxTimestamp,
   startRange,
   endRange,
-  onStartChange,
-  onEndChange,
-  sliderFillStyle,
   formatDate,
+  snapStep,
 } = useConnectionData();
 
 const isTimelinePanelCollapsed = ref(true);
+
+const handleSliderInput = (payload: { minValue: number; maxValue: number }) => {
+  if (typeof payload.minValue === 'number') {
+    startRange.value = payload.minValue;
+  }
+  if (typeof payload.maxValue === 'number') {
+    endRange.value = payload.maxValue;
+  }
+};
 </script>
 
 <template>
@@ -52,25 +60,18 @@ const isTimelinePanelCollapsed = ref(true);
           </div>
         </div>
         <div class="slider-container">
-          <div class="slider-fill" :style="sliderFillStyle"></div>
-          <input
-            v-model.number="startRange"
-            type="range"
-            class="timeline-slider-input"
-            :min="minTimestamp"
-            :max="maxTimestamp"
-            title="Timeline Start"
-            @input="onStartChange"
-          />
-          <input
-            v-model.number="endRange"
-            type="range"
-            class="timeline-slider-input"
-            :min="minTimestamp"
-            :max="maxTimestamp"
-            title="Timeline End"
-            @input="onEndChange"
-          />
+          <Slider
+            class="timeline-slider"
+            with-tooltip
+            :min="roundedMinTimestamp"
+            :max="roundedMaxTimestamp"
+            :min-value="startRange"
+            :max-value="endRange"
+            :snap-step="snapStep"
+            :value-formatter="formatDate"
+            @input="handleSliderInput"
+          >
+          </Slider>
         </div>
       </div>
     </div>
@@ -96,7 +97,7 @@ const isTimelinePanelCollapsed = ref(true);
 }
 
 .panel-content {
-  overflow: hidden;
+  overflow: visible;
 }
 
 .timeline-labels {
@@ -112,66 +113,18 @@ const isTimelinePanelCollapsed = ref(true);
 }
 .slider-container {
   position: relative;
-  height: 20px;
+  height: auto;
   display: flex;
   align-items: center;
+  padding: 0.5rem 0;
+  margin-top: 0.5rem;
 }
-.slider-container::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 6px;
-  background-color: var(--color-slider-track);
-  border-radius: 3px;
-}
-.slider-fill {
-  position: absolute;
-  height: 6px;
-  background-color: var(--color-slider-fill);
-  border-radius: 3px;
-  z-index: 1;
-}
-.timeline-slider-input {
-  position: absolute;
+
+.timeline-slider {
   width: 100%;
-  -webkit-appearance: none;
-  appearance: none;
-  background: transparent;
-  margin: 0;
-  pointer-events: none;
-  z-index: 2;
-}
-.timeline-slider-input::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  height: 18px;
-  width: 18px;
-  background-color: var(--color-thumb-bg);
-  border-radius: 50%;
-  border: 2px solid var(--color-thumb-border);
-  cursor: pointer;
-  pointer-events: auto;
-  margin-top: -6px;
-  box-shadow: 0 1px 3px var(--color-panel-shadow);
-}
-.timeline-slider-input::-moz-range-thumb {
-  height: 14px;
-  width: 14px;
-  background-color: var(--color-thumb-bg);
-  border-radius: 50%;
-  border: 2px solid var(--color-thumb-border);
-  cursor: pointer;
-  pointer-events: auto;
-  box-shadow: 0 1px 3px var(--color-panel-shadow);
-}
-.timeline-slider-input::-webkit-slider-runnable-track {
-  background: transparent;
-  height: 0;
-}
-.timeline-slider-input::-moz-range-track {
-  background: transparent;
-  height: 0;
+  --track-size: 6px;
+  --thumb-width: 18px;
+  --thumb-height: 18px;
 }
 
 .collapse-toggle {
@@ -195,13 +148,13 @@ const isTimelinePanelCollapsed = ref(true);
   background-color: var(--color-button-hover-bg);
 }
 .collapse-toggle-top {
-  bottom: 0; /* Position at the bottom of the wrapper */
+  bottom: 0;
   left: 50%;
   transform: translate(-50%);
-  margin-top: 0; /* Remove top margin */
-  border-top-left-radius: 0.375rem; /* Round top corners */
+  margin-top: 0;
+  border-top-left-radius: 0.375rem;
   border-top-right-radius: 0.375rem;
-  border-bottom-left-radius: 0; /* Un-round bottom corners */
+  border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
 }
 
