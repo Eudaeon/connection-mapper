@@ -89,7 +89,7 @@ const isPartiallySelected = computed(() => {
 
 #user-panel {
   padding: 0.5rem 0.75rem;
-  width: 220px;
+  width: 240px;
   max-height: 60vh;
   display: flex;
   flex-direction: column;
@@ -129,12 +129,10 @@ h4 {
   cursor: pointer;
   user-select: none;
 }
-
 .select-all-container label span {
   font-weight: 500;
   color: var(--color-text-muted);
 }
-
 .select-all-container input[type='checkbox'] {
   cursor: pointer;
   flex-shrink: 0;
@@ -147,11 +145,14 @@ h4 {
   overflow-y: auto;
   flex-grow: 1;
 }
+
 .user-item {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.25rem 0;
+  content-visibility: auto;
+  contain-intrinsic-size: 0 28px;
 }
 
 .color-swatch {

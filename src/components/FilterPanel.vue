@@ -22,6 +22,9 @@ const PRETTY_NAMES: Record<string, string> = {
   userAgent: 'User Agent',
 };
 
+const MOBILE_SAFARI_GROUP_NAME = 'Safari Mobile';
+const MOBILE_SAFARI_PREFIX = 'Mobile Safari';
+
 function prettifyCategory(category: string): string {
   return PRETTY_NAMES[category] || category;
 }
@@ -44,6 +47,143 @@ function isPartiallySelected(category: string): boolean {
   const total = filterableCategories.value.get(category)?.size ?? 0;
   const selected = getSelectedCount(category);
   return selected > 0 && selected < total;
+}
+
+const groupedCategoriesCache = new Map<
+  string,
+  { groups: Map<string, string[]>; ungrouped: string[] }
+>();
+
+function processGroupableCategory(
+  category: string,
+  values: Set<string>
+): { groups: Map<string, string[]>; ungrouped: string[] } {
+  const cacheKey = category + JSON.stringify([...values]);
+  if (groupedCategoriesCache.has(cacheKey)) {
+    return groupedCategoriesCache.get(cacheKey)!;
+  }
+
+  const groups = new Map<string, string[]>();
+  const ungrouped: string[] = [];
+
+  for (const value of values) {
+    const originalValue = value.trim();
+    const lastSpaceIndex = originalValue.lastIndexOf(' ');
+
+    if (category === 'os' || category === 'browser') {
+      let prefix: string | null = null;
+      let isVersioned = false;
+
+      if (lastSpaceIndex > 0) {
+        const potentialVersion = originalValue
+          .substring(lastSpaceIndex + 1)
+          .trim();
+        const potentialGroupName = originalValue
+          .substring(0, lastSpaceIndex)
+          .trim();
+
+        if (potentialVersion && potentialVersion.match(/\d/)) {
+          prefix = potentialGroupName;
+          isVersioned = true;
+        }
+      }
+
+      if (isVersioned && prefix) {
+        let groupName = prefix;
+
+        if (category === 'browser' && groupName === MOBILE_SAFARI_PREFIX) {
+          groupName = MOBILE_SAFARI_GROUP_NAME;
+        }
+
+        if (!groups.has(groupName)) groups.set(groupName, []);
+        groups.get(groupName)!.push(originalValue);
+      } else if (
+        category === 'browser' &&
+        originalValue === MOBILE_SAFARI_PREFIX
+      ) {
+        const groupName = MOBILE_SAFARI_GROUP_NAME;
+        if (!groups.has(groupName)) groups.set(groupName, []);
+        groups.get(groupName)!.push(originalValue);
+      } else {
+        ungrouped.push(originalValue);
+      }
+    } else {
+      ungrouped.push(originalValue);
+    }
+  }
+
+  const sortedGroups = new Map(
+    [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+  );
+
+  for (const [key, val] of sortedGroups.entries()) {
+    sortedGroups.set(
+      key,
+      val.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+    );
+  }
+
+  ungrouped.sort((a, b) => a.localeCompare(b));
+
+  const result = { groups: sortedGroups, ungrouped };
+  groupedCategoriesCache.set(cacheKey, result);
+  return result;
+}
+
+function getGroupStatus(category: string, fullValues: string[]) {
+  const currentFilters = selectedFilters.value.get(category);
+  if (!currentFilters || fullValues.length === 0)
+    return { checked: false, indeterminate: false, selectedCount: 0 };
+
+  let selectedCount = 0;
+  for (const v of fullValues) {
+    if (currentFilters.has(v)) selectedCount++;
+  }
+
+  return {
+    checked: selectedCount === fullValues.length,
+    indeterminate: selectedCount > 0 && selectedCount < fullValues.length,
+    selectedCount: selectedCount,
+  };
+}
+
+function toggleGroup(category: string, fullValues: string[]) {
+  const { checked } = getGroupStatus(category, fullValues);
+  const shouldSelect = !checked;
+
+  const newFilters = new Map(selectedFilters.value);
+  const categorySet = new Set(newFilters.get(category) || []);
+
+  for (const v of fullValues) {
+    if (shouldSelect) {
+      categorySet.add(v);
+    } else {
+      categorySet.delete(v);
+    }
+  }
+
+  newFilters.set(category, categorySet);
+  selectedFilters.value = newFilters;
+}
+
+function getVersionOnly(fullValue: string, category: string): string {
+  if (category !== 'os' && category !== 'browser') return fullValue;
+
+  const lastSpaceIndex = fullValue.lastIndexOf(' ');
+
+  if (lastSpaceIndex > 0) {
+    const potentialVersion = fullValue.substring(lastSpaceIndex + 1).trim();
+
+    if (potentialVersion && potentialVersion.match(/\d/)) {
+      return potentialVersion;
+    }
+  }
+
+  if (category === 'browser') {
+    return 'Unknown';
+  }
+
+  return fullValue;
 }
 </script>
 
@@ -78,7 +218,6 @@ function isPartiallySelected(category: string): boolean {
             v-for="[category, values] in filterableCategories"
             :key="category"
             class="filter-category"
-            open
           >
             <summary>
               <div class="category-summary-content">
@@ -99,21 +238,123 @@ function isPartiallySelected(category: string): boolean {
               </div>
             </summary>
             <ul class="filter-list">
-              <li
-                v-for="value in sortedValues(values)"
-                :key="value"
-                class="filter-item"
-              >
-                <input
-                  :id="`filter-${category}-${value}`"
-                  type="checkbox"
-                  :checked="selectedFilters.get(category)?.has(value)"
-                  @change="toggleFilter(category, value)"
-                />
-                <label :for="`filter-${category}-${value}`" :title="value">
-                  {{ value }}
-                </label>
-              </li>
+              <template v-if="category === 'os' || category === 'browser'">
+                <template
+                  v-if="
+                    processGroupableCategory(category, values).groups.size > 0
+                  "
+                >
+                  <li
+                    v-for="[groupName, fullValues] in processGroupableCategory(
+                      category,
+                      values
+                    ).groups"
+                    :key="groupName"
+                    class="filter-group"
+                  >
+                    <details>
+                      <summary>
+                        <div class="group-summary-content">
+                          <input
+                            type="checkbox"
+                            :checked="
+                              getGroupStatus(category, fullValues).checked
+                            "
+                            :indeterminate.prop="
+                              getGroupStatus(category, fullValues).indeterminate
+                            "
+                            @click.stop="toggleGroup(category, fullValues)"
+                          />
+                          <label
+                            @click.stop="toggleGroup(category, fullValues)"
+                          >
+                            {{ groupName }}
+                            <span>
+                              ({{
+                                getGroupStatus(category, fullValues)
+                                  .selectedCount
+                              }})
+                            </span>
+                          </label>
+                        </div>
+                      </summary>
+                      <ul class="sub-filter-list">
+                        <li
+                          v-for="value in fullValues"
+                          :key="value"
+                          class="filter-item"
+                        >
+                          <input
+                            :id="`filter-${category}-${value}`"
+                            type="checkbox"
+                            :checked="selectedFilters.get(category)?.has(value)"
+                            @change="toggleFilter(category, value)"
+                          />
+                          <label
+                            :for="`filter-${category}-${value}`"
+                            :title="value"
+                          >
+                            {{ getVersionOnly(value, category) }}
+                          </label>
+                        </li>
+                      </ul>
+                    </details>
+                  </li>
+
+                  <li
+                    v-for="value in processGroupableCategory(category, values)
+                      .ungrouped"
+                    :key="value"
+                    class="filter-item"
+                  >
+                    <input
+                      :id="`filter-${category}-${value}`"
+                      type="checkbox"
+                      :checked="selectedFilters.get(category)?.has(value)"
+                      @change="toggleFilter(category, value)"
+                    />
+                    <label :for="`filter-${category}-${value}`" :title="value">
+                      {{ value }}
+                    </label>
+                  </li>
+                </template>
+
+                <template v-else>
+                  <li
+                    v-for="value in sortedValues(values)"
+                    :key="value"
+                    class="filter-item"
+                  >
+                    <input
+                      :id="`filter-${category}-${value}`"
+                      type="checkbox"
+                      :checked="selectedFilters.get(category)?.has(value)"
+                      @change="toggleFilter(category, value)"
+                    />
+                    <label :for="`filter-${category}-${value}`" :title="value">
+                      {{ value }}
+                    </label>
+                  </li>
+                </template>
+              </template>
+
+              <template v-else>
+                <li
+                  v-for="value in sortedValues(values)"
+                  :key="value"
+                  class="filter-item"
+                >
+                  <input
+                    :id="`filter-${category}-${value}`"
+                    type="checkbox"
+                    :checked="selectedFilters.get(category)?.has(value)"
+                    @change="toggleFilter(category, value)"
+                  />
+                  <label :for="`filter-${category}-${value}`" :title="value">
+                    {{ value }}
+                  </label>
+                </li>
+              </template>
             </ul>
           </details>
         </div>
@@ -133,7 +374,7 @@ function isPartiallySelected(category: string): boolean {
 
 #filter-panel {
   padding: 0.5rem 0.75rem;
-  width: 225px;
+  width: 240px;
   max-height: 60vh;
   display: flex;
   flex-direction: column;
@@ -223,6 +464,44 @@ h4 {
 .filter-item input[type='checkbox'] {
   cursor: pointer;
   flex-shrink: 0;
+}
+
+.filter-group details summary {
+  cursor: pointer;
+  user-select: none;
+  padding: 2px 0;
+  font-size: 0.9rem;
+}
+
+.group-summary-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.group-summary-content input[type='checkbox'] {
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.group-summary-content label {
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.group-summary-content label span {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.sub-filter-list {
+  list-style: none;
+  padding-left: 18px;
+  margin: 0;
 }
 
 .collapse-toggle {

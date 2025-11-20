@@ -40,7 +40,7 @@ const {
         enter-from-class="opacity-0"
         leave-to-class="opacity-0"
       >
-        <div v-if="showCopiedMessage" class="copied-message">Copied!</div>
+        <span v-if="showCopiedMessage" class="copied-message">Copied!</span>
       </transition>
     </button>
   </div>
@@ -65,6 +65,7 @@ const {
   background: none;
   border: none;
   line-height: 0;
+  position: relative;
 }
 .control-button:hover {
   background-color: var(--color-button-hover-bg);
@@ -86,18 +87,22 @@ label.control-button.disabled {
 
 .copied-message {
   position: absolute;
-  top: 3rem;
+  top: 100%;
+  margin-top: 0.5rem;
   left: 50%;
   transform: translateX(-50%);
   background-color: var(--color-popup-bg);
   color: var(--color-text);
   font-size: 0.875rem;
+  line-height: 1.5;
   padding: 0.25rem 0.75rem;
   border-radius: 0.375rem;
   box-shadow:
     0 4px 6px -1px var(--color-panel-shadow),
     0 2px 4px -2px var(--color-panel-shadow);
   white-space: nowrap;
+  pointer-events: none;
+  z-index: 20;
 }
 
 .transition-opacity {

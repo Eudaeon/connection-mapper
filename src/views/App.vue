@@ -6,8 +6,10 @@ import ThemeToggle from '../components/ThemeToggle.vue';
 import UserPanel from '../components/UserPanel.vue';
 import FilterPanel from '../components/FilterPanel.vue';
 import TimelinePanel from '../components/TimelinePanel.vue';
+import ProgressRing from '../components/ProgressRing.vue';
 
-const { filteredUsers, isLoading, statusMessage } = useConnectionData();
+const { filteredUsers, isLoading, statusMessage, progressValue, progressText } =
+  useConnectionData();
 </script>
 
 <template>
@@ -21,7 +23,12 @@ const { filteredUsers, isLoading, statusMessage } = useConnectionData();
 
     <div v-if="isLoading" class="loading-overlay">
       <div class="loader-content">
-        <div class="progress-ring"></div>
+        <ProgressRing
+          :value="progressValue"
+          :text="progressText"
+          :size="80"
+          :stroke-width="6"
+        />
         <span class="loading-status">{{ statusMessage }}</span>
       </div>
     </div>
@@ -66,23 +73,5 @@ const { filteredUsers, isLoading, statusMessage } = useConnectionData();
 .loading-status {
   font-weight: 500;
   color: var(--color-text);
-}
-
-.progress-ring {
-  width: 50px;
-  height: 50px;
-  border: 5px solid var(--color-border);
-  border-top-color: var(--color-slider-fill);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
 }
 </style>

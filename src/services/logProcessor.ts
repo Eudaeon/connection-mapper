@@ -1,54 +1,81 @@
 import { parseCSV } from './csvParser';
 import type { GeolocationData, Connection, UserMapData } from '../types/index';
 
+type ProgressReporter = (
+  message: string,
+  progressValue?: number,
+  progressText?: string
+) => void;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+const RETRY_DELAY_MS = 2000;
+const MAX_RETRIES = 3;
+
 async function geocodeIPs(
   ips: string[],
-  onProgress: (message: string) => void
+  onProgress: ProgressReporter,
+  startProgress: number = 0,
+  endProgress: number = 100
 ): Promise<Map<string, GeolocationData>> {
   const geoMap = new Map<string, GeolocationData>();
-  const ipChunks: string[][] = [];
+  const totalIps = ips.length;
 
-  for (let i = 0; i < ips.length; i += 100) {
+  if (totalIps === 0) {
+    onProgress(`Geocoding complete.`, endProgress, `0`);
+    return geoMap;
+  }
+
+  const ipChunks: string[][] = [];
+  for (let i = 0; i < totalIps; i += 100) {
     ipChunks.push(ips.slice(i, i + 100));
   }
+  const totalChunks = ipChunks.length;
+  let completedChunks = 0;
+  const progressRange = endProgress - startProgress;
 
-  let processedCount = 0;
-  for (const chunk of ipChunks) {
-    onProgress(
-      `Geocoding ${processedCount + 1}-${
-        processedCount + chunk.length
-      } of ${ips.length} IPs...`
+  const updateOverallProgress = () => {
+    const fractionalProgress = completedChunks / totalChunks;
+    const progressPercent = Math.round(
+      startProgress + fractionalProgress * progressRange
     );
-    try {
-      const payload = chunk.map((ip) => ({
-        query: ip,
-        fields: 'query,lon,lat',
-      }));
-      const response = await fetch(
-        'https://ip-geolocation-api.eudaeon.workers.dev/',
-        {
-          method: 'POST',
-          body: JSON.stringify(payload),
-        }
-      );
+    onProgress(`Geocoding IPs...`, Math.min(progressPercent, endProgress - 1), `${geoMap.size}`);
+  };
 
-      if (!response.ok) {
-        throw new Error(`API request failed with status ${response.status}`);
-      }
+  const processChunk = async (chunk: string[]): Promise<void> => {
+    let attempts = 0;
+    while (attempts < MAX_RETRIES) {
+      try {
+        const payload = chunk.map((ip) => ({ query: ip, fields: 'query,lon,lat' }));
+        const response = await fetch(
+          'https://ip-geolocation-api.eudaeon.workers.dev/',
+          { method: 'POST', body: JSON.stringify(payload) }
+        );
 
-      const geoData: GeolocationData[] = await response.json();
-      for (const geo of geoData) {
-        if (geo.lat && geo.lon) {
-          geoMap.set(geo.query, geo);
+        if (!response.ok) throw new Error(`${response.status}`);
+
+        const geoData: GeolocationData[] = await response.json();
+        for (const geo of geoData) {
+          if (geo.lat && geo.lon) {
+            geoMap.set(geo.query, geo);
+          }
         }
+        completedChunks++;
+        updateOverallProgress();
+        return;
+      } catch (e) {
+        attempts++;
+        if (attempts >= MAX_RETRIES) console.warn(`Failed chunk after ${MAX_RETRIES} attempts`, e);
+        else await sleep(RETRY_DELAY_MS * attempts);
       }
-    } catch (e: any) {
-      console.error(`Failed to geocode chunk: ${e.message}`);
     }
-    processedCount += chunk.length;
-  }
+  };
 
-  onProgress(`Geocoding complete. Found locations for ${geoMap.size} IPs.`);
+  await Promise.all(ipChunks.map(chunk => processChunk(chunk)));
+
+  onProgress(`Geocoding complete.`, endProgress - 1, `${geoMap.size}`);
   return geoMap;
 }
 
@@ -63,21 +90,25 @@ function assignColors(count: number): string[] {
 
 export async function processLogFile(
   file: File,
-  onProgress: (message: string) => void
+  onProgress: ProgressReporter
 ): Promise<UserMapData[]> {
-  onProgress('Reading file...');
+  onProgress('Reading file...', 5, '');
   const csvContent = await file.text();
 
-  onProgress('Parsing CSV...');
+  onProgress('Parsing CSV...', 10, '');
+  await sleep(10);
+  
   const logs = parseCSV(csvContent);
   if (logs.length === 0) {
     throw new Error('No valid log entries found in the file.');
   }
 
   const uniqueIPs = [...new Set(logs.map((log) => log.ip))];
-  const geoData = await geocodeIPs(uniqueIPs, onProgress);
+  const geoData = await geocodeIPs(uniqueIPs, onProgress, 10, 90);
 
-  onProgress('Processing connections...');
+  onProgress('Processing connections...', 95);
+  await sleep(10);
+
   const connections: Connection[] = [];
   for (const log of logs) {
     const geo = geoData.get(log.ip);
@@ -117,6 +148,6 @@ export async function processLogFile(
     }
   }
 
-  onProgress('Finalizing data...');
+  onProgress('Successfully processed data.', 100);
   return [...userMap.values()];
 }

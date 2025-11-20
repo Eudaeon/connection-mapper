@@ -178,8 +178,8 @@ body {
   padding-left: 17px;
 }
 .leaflet-popup-content .connection-item {
-  margin-top: 8px;
-  padding-bottom: 8px;
+  margin-top: 0.75rem;
+  padding-bottom: 0.75rem;
   border-bottom: 1px dashed var(--color-border);
 }
 .leaflet-popup-content .connection-item:last-child {

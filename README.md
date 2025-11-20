@@ -6,7 +6,7 @@ This tool parses security logs, geolocates all IP addresses, and plots them, pro
 
 ## Features
 
-- Displays user connections on a Leaflet.js map.
+- Displays clustered user connections on a Leaflet.js map.
 - Supports both Azure Sign-in and Audit log CSV formats.
 - Automatically fetches latitude and longitude for all unique IPs.
 - Supports dynamic connection filtering using collapsible UI elements:

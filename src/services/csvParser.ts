@@ -1,100 +1,87 @@
 import type { LogEntry } from '../types/index';
 
-type JsonProperty = { Name: string; Value: string };
-type DeviceProperty = { Name: string; Value: string };
+const HEADER_MAP = {
+  user: ["Nom d'utilisateur", 'Username', 'UserId'],
+  ip: ['Adresse IP', 'IP address', 'ClientIP'],
+  date: ['Date (UTC)', 'CreationDate'],
+  app: ['Application'],
+  compliant: ['Conforme', 'Compliant', 'IsCompliant'],
+  managed: ['Géré', 'Managed', 'IsCompliantAndManaged'],
+  os: ["Système d'exploitation", 'Operating System', 'OS'],
+  browser: ['Navigateur', 'Browser', 'BrowserType'],
+  userAgent: ['Agent utilisateur', 'User agent', 'UserAgent'],
+  mfaReq: ['Exigence d’authentification', 'Authentication requirement'],
+  mfaMethod: [
+    'Méthode d’authentification multifacteur',
+    'Multifactor authentication auth method',
+  ],
+  status: ['Statut', 'Status'],
+  auditData: ['AuditData'],
+};
 
-function findInExtended(
-  props: JsonProperty[],
-  name: string
-): string | undefined {
-  const prop = props?.find((p) => p.Name === name);
-  return prop?.Value;
-}
-
-function findInDevice(
-  props: DeviceProperty[],
-  name: string
-): string | undefined {
-  const prop = props?.find((p) => p.Name === name);
-  return prop?.Value;
-}
-
-const USER_HEADERS = ["Nom d'utilisateur", 'Username'];
-const IP_HEADERS = ['Adresse IP', 'IP address'];
-const DATE_HEADERS = ['Date (UTC)'];
-const APP_HEADERS = ['Application'];
-const COMPLIANT_HEADERS = ['Conforme', 'Compliant'];
-const MANAGED_HEADERS = ['Géré', 'Managed'];
-const OS_HEADERS = ["Système d'exploitation", 'Operating System'];
-const BROWSER_HEADERS = ['Navigateur', 'Browser'];
-const UA_HEADERS = ['Agent utilisateur', 'User agent'];
-const MFA_REQ_HEADERS = [
-  'Exigence d’authentification',
-  'Authentication requirement',
-];
-const MFA_METHOD_HEADERS = [
-  'Méthode d’authentification multifacteur',
-  'Multifactor authentication auth method',
-];
-const STATUS_HEADERS = ['Statut', 'Status'];
-const SUCCESS_STATUS_VALUES = ['Opération réussie', 'Success'];
+const SUCCESS_STATUS_VALUES = new Set(['Opération réussie', 'Success']);
 
 function isValidEmail(email: string): boolean {
-  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return re.test(email);
+  return email.includes('@') && email.includes('.');
+}
+
+function isValidIPAddress(ip: string | undefined): boolean {
+  if (!ip) return false;
+  return ip.length >= 7 && (ip.indexOf('.') > -1 || ip.indexOf(':') > -1);
+}
+
+function capitalizeOS(os: string | undefined): string | undefined {
+  if (!os) return os;
+  const trimmed = os.trim();
+  return trimmed.toLowerCase().startsWith('ios')
+    ? trimmed.replace(/^ios/i, 'iOS')
+    : trimmed;
 }
 
 function detectDelimiter(line: string): string {
-  const potentialDelimiters = [';', ',', '\t', '|'];
-  let bestDelimiter = ',';
-  let maxCount = 0;
-  const testLine = line.replace(/^"|"$/g, '');
-  for (const delim of potentialDelimiters) {
-    const count = (testLine.match(new RegExp(`\\${delim}`, 'g')) || []).length;
-    if (count > maxCount) {
-      maxCount = count;
-      bestDelimiter = delim;
-    }
-  }
-  if (bestDelimiter === ',' && (testLine.match(/;/g) || []).length > 10) {
+  if (
+    line.includes(';') &&
+    (line.match(/;/g) || []).length > line.split(',').length
+  )
     return ';';
-  }
-  return bestDelimiter;
+  return ',';
 }
 
 function splitCSVLine(line: string, delimiter: string): string[] {
   const fields: string[] = [];
-  let currentField = '';
+  let current = '';
   let inQuotes = false;
   const delimChar = delimiter[0];
-  for (let i = 0; i < line.length; i++) {
+  const len = line.length;
+
+  for (let i = 0; i < len; i++) {
     const char = line[i];
     if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        currentField += '"';
+      if (inQuotes && i + 1 < len && line[i + 1] === '"') {
+        current += '"';
         i++;
       } else {
         inQuotes = !inQuotes;
       }
     } else if (char === delimChar && !inQuotes) {
-      fields.push(currentField);
-      currentField = '';
+      fields.push(current);
+      current = '';
     } else {
-      currentField += char;
+      current += char;
     }
   }
-  fields.push(currentField);
+  fields.push(current);
   return fields;
 }
 
+function findIndexAny(headers: string[], candidates: string[]): number {
+  return headers.findIndex((h) => candidates.includes(h));
+}
+
 export function parseCSV(fileContent: string): LogEntry[] {
-  const logs: LogEntry[] = [];
-
-  if (fileContent.charCodeAt(0) === 0xfeff) {
-    fileContent = fileContent.substring(1);
-  }
-
-  const lines = fileContent.split(/\r?\n/);
+  const content =
+    fileContent.charCodeAt(0) === 0xfeff ? fileContent.slice(1) : fileContent;
+  const lines = content.split(/\r?\n/);
   if (lines.length < 2) return [];
 
   const headerLine = lines[0] || '';
@@ -103,117 +90,97 @@ export function parseCSV(fileContent: string): LogEntry[] {
     h.replace(/^"|"$/g, '').trim()
   );
 
-  // --- Audit Log Format ---
-  const auditDataIndex = headers.indexOf('AuditData');
-  const creationDateIndex = headers.indexOf('CreationDate');
-  const userIdIndex = headers.indexOf('UserId');
+  const logs: LogEntry[] = [];
 
-  if (auditDataIndex !== -1 && creationDateIndex !== -1 && userIdIndex !== -1) {
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i];
-      if (!line) continue;
+  const idx = {
+    auditData: headers.indexOf('AuditData'),
+    user: findIndexAny(headers, HEADER_MAP.user),
+    ip: findIndexAny(headers, HEADER_MAP.ip),
+    date: findIndexAny(headers, HEADER_MAP.date),
+    app: findIndexAny(headers, HEADER_MAP.app),
+    status: findIndexAny(headers, HEADER_MAP.status),
+    compliant: findIndexAny(headers, HEADER_MAP.compliant),
+    managed: findIndexAny(headers, HEADER_MAP.managed),
+    os: findIndexAny(headers, HEADER_MAP.os),
+    browser: findIndexAny(headers, HEADER_MAP.browser),
+    ua: findIndexAny(headers, HEADER_MAP.userAgent),
+    mfaReq: findIndexAny(headers, HEADER_MAP.mfaReq),
+    mfaMethod: findIndexAny(headers, HEADER_MAP.mfaMethod),
+  };
 
-      const fields = splitCSVLine(line, delimiter).map((f) =>
-        f.replace(/^"|"$/g, '')
-      );
-      const auditDataStr = fields[auditDataIndex];
-      if (!auditDataStr) continue;
+  const isAuditFormat =
+    idx.auditData !== -1 && idx.date !== -1 && idx.user !== -1;
 
-      const userId = fields[userIdIndex]?.trim();
-      const timestampStr = fields[creationDateIndex]?.trim();
+  const lineCount = lines.length;
 
-      if (!userId || !timestampStr) continue;
+  for (let i = 1; i < lineCount; i++) {
+    const line = lines[i];
+    if (!line || line.length < 10) continue;
 
-      try {
-        const auditData = JSON.parse(auditDataStr);
+    const fields = splitCSVLine(line, delimiter).map((f) =>
+      f.replace(/^"|"$/g, '')
+    );
 
-        if (auditData.Operation !== 'UserLoggedIn') {
+    try {
+      if (isAuditFormat) {
+        const auditStr = fields[idx.auditData];
+        if (!auditStr) continue;
+
+        const auditData = JSON.parse(auditStr);
+        if (
+          auditData.Operation !== 'UserLoggedIn' ||
+          !isValidIPAddress(auditData.ClientIP)
+        )
           continue;
-        }
 
-        const extendedProps = auditData.ExtendedProperties || [];
         const deviceProps = auditData.DeviceProperties || [];
-
-        const compliant = findInDevice(deviceProps, 'IsCompliant');
-        const managed = findInDevice(deviceProps, 'IsCompliantAndManaged');
+        const extendedProps = auditData.ExtendedProperties || [];
+        const findProp = (arr: any[], name: string) =>
+          arr?.find((p: any) => p.Name === name)?.Value;
 
         logs.push({
-          user: userId,
+          user: fields[idx.user]?.trim() || 'Unknown',
           ip: auditData.ClientIP,
-          timestamp: new Date(timestampStr),
-
-          userAgent: findInExtended(extendedProps, 'UserAgent'),
-          os: findInDevice(deviceProps, 'OS'),
-          browser: findInDevice(deviceProps, 'BrowserType'),
-
-          compliant: compliant ? compliant.toLowerCase() : undefined,
-          managed: managed ? managed.toLowerCase() : undefined,
+          timestamp: new Date(fields[idx.date]?.trim() || ''),
+          userAgent: findProp(extendedProps, 'UserAgent'),
+          os: capitalizeOS(findProp(deviceProps, 'OS')),
+          browser: findProp(deviceProps, 'BrowserType'),
+          compliant: findProp(deviceProps, 'IsCompliant')?.toLowerCase(),
+          managed: findProp(
+            deviceProps,
+            'IsCompliantAndManaged'
+          )?.toLowerCase(),
         });
-      } catch (e) {
-        console.error('Error parsing AuditData JSON:', e, auditDataStr);
-      }
-    }
-  } else {
-    // --- Sign-in Log Format ---
-    const userIndex = headers.findIndex((h) => USER_HEADERS.includes(h));
-    const ipIndex = headers.findIndex((h) => IP_HEADERS.includes(h));
-    const dateIndex = headers.findIndex((h) => DATE_HEADERS.includes(h));
+      } else {
+        if (idx.user === -1 || idx.ip === -1 || idx.date === -1) continue;
 
-    const appIndex = headers.findIndex((h) => APP_HEADERS.includes(h));
-    const compliantIndex = headers.findIndex((h) =>
-      COMPLIANT_HEADERS.includes(h)
-    );
-    const managedIndex = headers.findIndex((h) => MANAGED_HEADERS.includes(h));
-    const osIndex = headers.findIndex((h) => OS_HEADERS.includes(h));
-    const browserIndex = headers.findIndex((h) => BROWSER_HEADERS.includes(h));
-    const uaIndex = headers.findIndex((h) => UA_HEADERS.includes(h));
-    const mfaReqIndex = headers.findIndex((h) => MFA_REQ_HEADERS.includes(h));
-    const mfaMethodIndex = headers.findIndex((h) =>
-      MFA_METHOD_HEADERS.includes(h)
-    );
-    const statusIndex = headers.findIndex((h) => STATUS_HEADERS.includes(h));
+        const status = idx.status !== -1 ? fields[idx.status]?.trim() : null;
+        if (status && !SUCCESS_STATUS_VALUES.has(status)) continue;
 
-    if (userIndex !== -1 && ipIndex !== -1 && dateIndex !== -1) {
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i];
-        if (!line) continue;
+        const userId = fields[idx.user]?.trim();
+        const ip = fields[idx.ip]?.trim();
+        const timeStr = fields[idx.date]?.trim();
 
-        const fields = splitCSVLine(line, delimiter).map((f) =>
-          f.replace(/^"|"$/g, '')
-        );
-
-        const userId = fields[userIndex]?.trim();
-        const ip = fields[ipIndex]?.trim();
-        const timestampStr = fields[dateIndex]?.trim();
-
-        if (statusIndex !== -1) {
-          const status = fields[statusIndex]?.trim();
-          if (!SUCCESS_STATUS_VALUES.includes(status ?? '')) {
-            continue;
-          }
-        }
-
-        if (!userId || !isValidEmail(userId) || !ip || !timestampStr) continue;
+        if (!userId || !isValidEmail(userId)) continue;
+        if (!ip || !isValidIPAddress(ip)) continue;
+        if (!timeStr) continue;
 
         logs.push({
           user: userId,
           ip: ip,
-          timestamp: new Date(timestampStr),
-          application: appIndex !== -1 ? fields[appIndex]?.trim() : undefined,
-          compliant:
-            compliantIndex !== -1 ? fields[compliantIndex]?.trim() : undefined,
-          managed:
-            managedIndex !== -1 ? fields[managedIndex]?.trim() : undefined,
-          os: osIndex !== -1 ? fields[osIndex]?.trim() : undefined,
-          browser:
-            browserIndex !== -1 ? fields[browserIndex]?.trim() : undefined,
-          userAgent: uaIndex !== -1 ? fields[uaIndex]?.trim() : undefined,
-          mfaRequirement:
-            mfaReqIndex !== -1 ? fields[mfaReqIndex]?.trim() : undefined,
-          mfaMethod:
-            mfaMethodIndex !== -1 ? fields[mfaMethodIndex]?.trim() : undefined,
+          timestamp: new Date(timeStr),
+          application: fields[idx.app]?.trim(),
+          compliant: fields[idx.compliant]?.trim(),
+          managed: fields[idx.managed]?.trim(),
+          os: capitalizeOS(fields[idx.os]?.trim()),
+          browser: fields[idx.browser]?.trim(),
+          userAgent: fields[idx.ua]?.trim(),
+          mfaRequirement: fields[idx.mfaReq]?.trim(),
+          mfaMethod: fields[idx.mfaMethod]?.trim(),
         });
       }
+    } catch (e) {
+      continue;
     }
   }
 
