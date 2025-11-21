@@ -41,14 +41,21 @@ async function geocodeIPs(
     const progressPercent = Math.round(
       startProgress + fractionalProgress * progressRange
     );
-    onProgress(`Geocoding IPs...`, Math.min(progressPercent, endProgress - 1), `${geoMap.size}`);
+    onProgress(
+      `Geocoding IPs...`,
+      Math.min(progressPercent, endProgress - 1),
+      `${geoMap.size}`
+    );
   };
 
   const processChunk = async (chunk: string[]): Promise<void> => {
     let attempts = 0;
     while (attempts < MAX_RETRIES) {
       try {
-        const payload = chunk.map((ip) => ({ query: ip, fields: 'query,lon,lat' }));
+        const payload = chunk.map((ip) => ({
+          query: ip,
+          fields: 'query,lon,lat',
+        }));
         const response = await fetch(
           'https://ip-geolocation-api.eudaeon.workers.dev/',
           { method: 'POST', body: JSON.stringify(payload) }
@@ -67,13 +74,14 @@ async function geocodeIPs(
         return;
       } catch (e) {
         attempts++;
-        if (attempts >= MAX_RETRIES) console.warn(`Failed chunk after ${MAX_RETRIES} attempts`, e);
+        if (attempts >= MAX_RETRIES)
+          console.warn(`Failed chunk after ${MAX_RETRIES} attempts`, e);
         else await sleep(RETRY_DELAY_MS * attempts);
       }
     }
   };
 
-  await Promise.all(ipChunks.map(chunk => processChunk(chunk)));
+  await Promise.all(ipChunks.map((chunk) => processChunk(chunk)));
 
   onProgress(`Geocoding complete.`, endProgress - 1, `${geoMap.size}`);
   return geoMap;
@@ -97,7 +105,7 @@ export async function processLogFile(
 
   onProgress('Parsing CSV...', 10, '');
   await sleep(10);
-  
+
   const logs = parseCSV(csvContent);
   if (logs.length === 0) {
     throw new Error('No valid log entries found in the file.');

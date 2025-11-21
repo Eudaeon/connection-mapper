@@ -59,7 +59,7 @@ export function clusterLocations(
     const gridKey = getGridKey(point);
 
     let foundCluster: MarkerData | null = null;
-    
+
     const [gx, gy] = gridKey.split(':').map(Number) as [number, number];
 
     searchLoop: for (let x = gx - 1; x <= gx + 1; x++) {

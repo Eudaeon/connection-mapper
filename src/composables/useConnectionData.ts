@@ -22,15 +22,16 @@ export function useConnectionData() {
 
   const filteredUsers = computed(() => {
     if (allUsers.value.length === 0) return [];
-    
+
     const result: UserMapData[] = [];
-    
+
     for (const user of allUsers.value) {
       if (!selectedUsers.value.has(user.user)) continue;
 
       const filteredConnections = user.allConnections.filter((conn) => {
         const time = conn.timestamp.getTime();
-        const inTime = time >= timeline.startRange.value && time <= timeline.endRange.value;
+        const inTime =
+          time >= timeline.startRange.value && time <= timeline.endRange.value;
         return inTime && filters.passesCategoryFilters(conn);
       });
 
@@ -51,19 +52,24 @@ export function useConnectionData() {
   });
 
   const allUsersSelected = computed(() => {
-    return allUsers.value.length > 0 && selectedUsers.value.size === allUsers.value.length;
+    return (
+      allUsers.value.length > 0 &&
+      selectedUsers.value.size === allUsers.value.length
+    );
   });
 
   function setData(processedData: UserMapData[]) {
-    const sortedData = processedData.sort((a, b) => a.user.localeCompare(b.user));
+    const sortedData = processedData.sort((a, b) =>
+      a.user.localeCompare(b.user)
+    );
     allUsers.value = sortedData;
     selectedUsers.value = new Set(sortedData.map((u) => u.user));
-    
+
     const allTimes = sortedData.flatMap((u) =>
       u.allConnections.map((c) => c.timestamp.getTime())
     );
     timeline.setTimelineBounds(allTimes);
-    
+
     showShareButton.value = sortedData.length > 0;
   }
 
@@ -72,7 +78,7 @@ export function useConnectionData() {
     statusMessage.value = 'Checking for shared map...';
     progressValue.value = 0;
     progressText.value = '';
-    
+
     try {
       const hydratedData = await loadDataFromUrl();
       if (hydratedData) {
@@ -124,7 +130,7 @@ export function useConnectionData() {
       const url = await generateShareUrl(filteredUsers.value);
       copyToClipboard(url);
       showCopiedMessage.value = true;
-      setTimeout(() => showCopiedMessage.value = false, 2000);
+      setTimeout(() => (showCopiedMessage.value = false), 2000);
     } catch (e: any) {
       console.error('Share map failed:', e);
       errorMessage.value = `Could not create share link: ${e.message}`;
@@ -139,8 +145,8 @@ export function useConnectionData() {
   }
 
   function toggleSelectAll() {
-    selectedUsers.value = allUsersSelected.value 
-      ? new Set() 
+    selectedUsers.value = allUsersSelected.value
+      ? new Set()
       : new Set(allUsers.value.map((u) => u.user));
   }
 

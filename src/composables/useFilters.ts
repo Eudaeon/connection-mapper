@@ -2,22 +2,35 @@ import { ref, computed, watch } from 'vue';
 import type { LogEntry, UserMapData } from '../types/index';
 
 const FILTERABLE_FIELDS: (keyof LogEntry)[] = [
-  'application', 'browser', 'userAgent', 'os', 'managed', 'compliant', 'mfaRequirement', 'mfaMethod',
+  'application',
+  'browser',
+  'userAgent',
+  'os',
+  'managed',
+  'compliant',
+  'mfaRequirement',
+  'mfaMethod',
 ];
 
 const selectedFilters = ref<Map<string, Set<string>>>(new Map());
 
-export function useFilters(allUsers: { value: UserMapData[] }, selectedUsers: { value: Set<string> }) {
+export function useFilters(
+  allUsers: { value: UserMapData[] },
+  selectedUsers: { value: Set<string> }
+) {
   const filterableCategories = computed(() => {
     const discoveredCategories = new Map<string, Set<string>>();
-    const activeUsers = allUsers.value.filter((u) => selectedUsers.value.has(u.user));
+    const activeUsers = allUsers.value.filter((u) =>
+      selectedUsers.value.has(u.user)
+    );
 
     for (const user of activeUsers) {
       for (const conn of user.allConnections) {
         for (const field of FILTERABLE_FIELDS) {
           const value = conn[field];
           if (value && typeof value === 'string') {
-            if (!discoveredCategories.has(field)) discoveredCategories.set(field, new Set());
+            if (!discoveredCategories.has(field))
+              discoveredCategories.set(field, new Set());
             discoveredCategories.get(field)!.add(value);
           }
         }
@@ -33,31 +46,37 @@ export function useFilters(allUsers: { value: UserMapData[] }, selectedUsers: { 
     return orderedCategories;
   });
 
-  watch(filterableCategories, (newCategories, oldCategories) => {
-    const newSelectedFilters = new Map(selectedFilters.value);
-    for (const [category, newValues] of newCategories) {
-      const oldValues = oldCategories?.get(category);
-      const currentSelection = newSelectedFilters.get(category);
-      
-      const wasAllSelected = !currentSelection || (oldValues && currentSelection.size === oldValues.size);
+  watch(
+    filterableCategories,
+    (newCategories, oldCategories) => {
+      const newSelectedFilters = new Map(selectedFilters.value);
+      for (const [category, newValues] of newCategories) {
+        const oldValues = oldCategories?.get(category);
+        const currentSelection = newSelectedFilters.get(category);
 
-      if (wasAllSelected) {
-        newSelectedFilters.set(category, new Set(newValues));
-      } else {
-        const preserved = new Set<string>();
-        if (currentSelection) {
-          for (const val of currentSelection) {
-            if (newValues.has(val)) preserved.add(val);
+        const wasAllSelected =
+          !currentSelection ||
+          (oldValues && currentSelection.size === oldValues.size);
+
+        if (wasAllSelected) {
+          newSelectedFilters.set(category, new Set(newValues));
+        } else {
+          const preserved = new Set<string>();
+          if (currentSelection) {
+            for (const val of currentSelection) {
+              if (newValues.has(val)) preserved.add(val);
+            }
           }
+          newSelectedFilters.set(category, preserved);
         }
-        newSelectedFilters.set(category, preserved);
       }
-    }
-    for (const category of newSelectedFilters.keys()) {
-      if (!newCategories.has(category)) newSelectedFilters.delete(category);
-    }
-    selectedFilters.value = newSelectedFilters;
-  }, { immediate: true });
+      for (const category of newSelectedFilters.keys()) {
+        if (!newCategories.has(category)) newSelectedFilters.delete(category);
+      }
+      selectedFilters.value = newSelectedFilters;
+    },
+    { immediate: true }
+  );
 
   function passesCategoryFilters(conn: LogEntry): boolean {
     for (const [category, selectedSet] of selectedFilters.value.entries()) {
@@ -89,5 +108,11 @@ export function useFilters(allUsers: { value: UserMapData[] }, selectedUsers: { 
     selectedFilters.value = newMap;
   }
 
-  return { selectedFilters, filterableCategories, passesCategoryFilters, toggleFilter, toggleSelectAllFilterCategory };
+  return {
+    selectedFilters,
+    filterableCategories,
+    passesCategoryFilters,
+    toggleFilter,
+    toggleSelectAllFilterCategory,
+  };
 }

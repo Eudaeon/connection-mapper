@@ -2,10 +2,7 @@
 import { onMounted, ref, watch } from 'vue';
 import type { PropType } from 'vue';
 import type { UserMapData } from '../types/index';
-import {
-  clusterLocations,
-  type MarkerData,
-} from '../utils/mapClustering';
+import { clusterLocations, type MarkerData } from '../utils/mapClustering';
 import L from 'leaflet';
 
 const props = defineProps({
@@ -208,7 +205,10 @@ function initMap() {
   if (mapContainer.value && !map) {
     const maxLat = 85.05112878;
     const minLat = -85.05112878;
-    const bounds = L.latLngBounds(L.latLng(minLat, -180), L.latLng(maxLat, 180));
+    const bounds = L.latLngBounds(
+      L.latLng(minLat, -180),
+      L.latLng(maxLat, 180)
+    );
 
     map = L.map(mapContainer.value, {
       attributionControl: false,
@@ -249,27 +249,27 @@ function fitMapBounds() {
 
 function updateMap(shouldFitBounds = false) {
   if (!map) return;
-  
+
   requestAnimationFrame(() => {
     if (!map) return;
-    
+
     const currentZoom = map.getZoom();
-    
+
     let finalMarkers: MarkerData[] = [];
-    
+
     if (zoomCache.has(currentZoom) && !shouldFitBounds) {
       finalMarkers = zoomCache.get(currentZoom)!;
     } else {
       if (props.users.length > 0) {
-         finalMarkers = clusterLocations(props.users, map!);
-         if (!shouldFitBounds) {
-           zoomCache.set(currentZoom, finalMarkers);
-         }
+        finalMarkers = clusterLocations(props.users, map!);
+        if (!shouldFitBounds) {
+          zoomCache.set(currentZoom, finalMarkers);
+        }
       }
     }
 
     markersLayer.clearLayers();
-    
+
     if (shouldFitBounds) iconCache.clear();
 
     for (const markerData of finalMarkers) {
@@ -307,10 +307,14 @@ onMounted(() => {
   themeObserver.observe(document.documentElement, { attributes: true });
 });
 
-watch(() => props.users, () => {
-  zoomCache.clear();
-  updateMap(true);
-}, { deep: true });
+watch(
+  () => props.users,
+  () => {
+    zoomCache.clear();
+    updateMap(true);
+  },
+  { deep: true }
+);
 </script>
 
 <template>
