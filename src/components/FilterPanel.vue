@@ -6,12 +6,16 @@ import { ChevronLeft, ChevronRight } from 'lucide-vue-next';
 const {
   filterableCategories,
   selectedFilters,
+  applicableCounts,
   toggleFilter,
   toggleSelectAllFilterCategory,
 } = useConnectionData();
 const isFilterPanelCollapsed = ref(true);
 
 const PRETTY_NAMES: Record<string, string> = {
+  ip: 'IP Address',
+  status: 'Status',
+  reason: 'Reason',
   application: 'Application',
   os: 'Operating System',
   browser: 'Browser',
@@ -30,7 +34,9 @@ function prettifyCategory(category: string): string {
 }
 
 function sortedValues(values: Set<string>): string[] {
-  return [...values].sort((a, b) => a.localeCompare(b));
+  return [...values].sort((a, b) =>
+    a.localeCompare(b, undefined, { numeric: true })
+  );
 }
 
 function getSelectedCount(category: string): number {
@@ -47,6 +53,16 @@ function isPartiallySelected(category: string): boolean {
   const total = filterableCategories.value.get(category)?.size ?? 0;
   const selected = getSelectedCount(category);
   return selected > 0 && selected < total;
+}
+
+function getMatchCount(category: string, value: string): number {
+  return applicableCounts.value.get(category)?.get(value) ?? 0;
+}
+
+function isMuted(category: string, value: string): boolean {
+  const isSelected = selectedFilters.value.get(category)?.has(value) ?? false;
+  const isApplicable = getMatchCount(category, value) > 0;
+  return !isSelected || !isApplicable;
 }
 
 const groupedCategoriesCache = new Map<
@@ -68,9 +84,13 @@ function processGroupableCategory(
 
   for (const value of values) {
     const originalValue = value.trim();
-    const lastSpaceIndex = originalValue.lastIndexOf(' ');
 
-    if (category === 'os' || category === 'browser') {
+    if (category === 'ip') {
+      const groupName = originalValue.includes(':') ? 'IPv6' : 'IPv4';
+      if (!groups.has(groupName)) groups.set(groupName, []);
+      groups.get(groupName)!.push(originalValue);
+    } else if (category === 'os' || category === 'browser') {
+      const lastSpaceIndex = originalValue.lastIndexOf(' ');
       let prefix: string | null = null;
       let isVersioned = false;
 
@@ -123,7 +143,7 @@ function processGroupableCategory(
     );
   }
 
-  ungrouped.sort((a, b) => a.localeCompare(b));
+  ungrouped.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
   const result = { groups: sortedGroups, ungrouped };
   groupedCategoriesCache.set(cacheKey, result);
@@ -238,7 +258,11 @@ function getVersionOnly(fullValue: string, category: string): string {
               </div>
             </summary>
             <ul class="filter-list">
-              <template v-if="category === 'os' || category === 'browser'">
+              <template
+                v-if="
+                  category === 'os' || category === 'browser' || category === 'ip'
+                "
+              >
                 <template
                   v-if="
                     processGroupableCategory(category, values).groups.size > 0
@@ -283,6 +307,7 @@ function getVersionOnly(fullValue: string, category: string): string {
                           v-for="value in fullValues"
                           :key="value"
                           class="filter-item"
+                          :class="{ 'is-muted': isMuted(category, value) }"
                         >
                           <input
                             :id="`filter-${category}-${value}`"
@@ -295,6 +320,7 @@ function getVersionOnly(fullValue: string, category: string): string {
                             :title="value"
                           >
                             {{ getVersionOnly(value, category) }}
+                            <span class="match-count">({{ getMatchCount(category, value) }})</span>
                           </label>
                         </li>
                       </ul>
@@ -306,6 +332,7 @@ function getVersionOnly(fullValue: string, category: string): string {
                       .ungrouped"
                     :key="value"
                     class="filter-item"
+                    :class="{ 'is-muted': isMuted(category, value) }"
                   >
                     <input
                       :id="`filter-${category}-${value}`"
@@ -315,6 +342,7 @@ function getVersionOnly(fullValue: string, category: string): string {
                     />
                     <label :for="`filter-${category}-${value}`" :title="value">
                       {{ value }}
+                      <span class="match-count">({{ getMatchCount(category, value) }})</span>
                     </label>
                   </li>
                 </template>
@@ -324,6 +352,7 @@ function getVersionOnly(fullValue: string, category: string): string {
                     v-for="value in sortedValues(values)"
                     :key="value"
                     class="filter-item"
+                    :class="{ 'is-muted': isMuted(category, value) }"
                   >
                     <input
                       :id="`filter-${category}-${value}`"
@@ -333,6 +362,7 @@ function getVersionOnly(fullValue: string, category: string): string {
                     />
                     <label :for="`filter-${category}-${value}`" :title="value">
                       {{ value }}
+                      <span class="match-count">({{ getMatchCount(category, value) }})</span>
                     </label>
                   </li>
                 </template>
@@ -343,6 +373,7 @@ function getVersionOnly(fullValue: string, category: string): string {
                   v-for="value in sortedValues(values)"
                   :key="value"
                   class="filter-item"
+                  :class="{ 'is-muted': isMuted(category, value) }"
                 >
                   <input
                     :id="`filter-${category}-${value}`"
@@ -352,6 +383,7 @@ function getVersionOnly(fullValue: string, category: string): string {
                   />
                   <label :for="`filter-${category}-${value}`" :title="value">
                     {{ value }}
+                    <span class="match-count">({{ getMatchCount(category, value) }})</span>
                   </label>
                 </li>
               </template>
@@ -406,6 +438,7 @@ h4 {
   padding: 0;
   overflow-y: auto;
   flex-grow: 1;
+  padding-right: 16px;
 }
 
 .filter-category summary {
@@ -417,22 +450,25 @@ h4 {
 
 .category-summary-content {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start; /* checkbox top-aligned with wrapped text */
   gap: 0.5rem;
 }
 
 .category-summary-content input[type='checkbox'] {
   flex-shrink: 0;
   cursor: pointer;
+  margin-top: 4px;
 }
+
 .category-summary-content label {
   font-weight: 600;
   cursor: pointer;
   user-select: none;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* Remove cropping */
+  white-space: normal; 
+  word-break: break-word;
 }
+
 .category-summary-content label span {
   font-weight: 500;
   color: var(--color-text-muted);
@@ -446,9 +482,20 @@ h4 {
 
 .filter-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start; /* checkbox top-aligned with wrapped text */
   gap: 0.5rem;
   padding: 0.25rem 0;
+  transition: opacity 0.2s;
+}
+
+.filter-item.is-muted {
+  opacity: 0.45;
+}
+
+.match-count {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-left: 0.25rem;
 }
 
 .filter-item label {
@@ -456,14 +503,15 @@ h4 {
   font-size: 0.9rem;
   cursor: pointer;
   user-select: none;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* Remove cropping */
+  white-space: normal;
+  word-break: break-word;
 }
 
 .filter-item input[type='checkbox'] {
   cursor: pointer;
   flex-shrink: 0;
+  margin-top: 4px;
 }
 
 .filter-group details summary {
@@ -475,22 +523,23 @@ h4 {
 
 .group-summary-content {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start; /* checkbox top-aligned with wrapped text */
   gap: 0.5rem;
 }
 
 .group-summary-content input[type='checkbox'] {
   flex-shrink: 0;
   cursor: pointer;
+  margin-top: 4px;
 }
 
 .group-summary-content label {
   font-weight: 500;
   cursor: pointer;
   user-select: none;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* Remove cropping */
+  white-space: normal;
+  word-break: break-word;
 }
 
 .group-summary-content label span {

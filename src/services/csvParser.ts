@@ -1,4 +1,21 @@
+// connection-mapper/src/services/csvParser.ts
+
 import type { LogEntry } from '../types/index';
+
+// Global Variables for Parsing Keywords
+const STATUS_SUCCESS = 'Success';
+const STATUS_FAILURE = 'Failure';
+const STATUS_INTERRUPTED = 'Interrupted';
+
+// Lists for status mapping
+const AZURE_STATUS_SUCCESS = ['Opération réussie', 'Success'];
+const AZURE_STATUS_INTERRUPTED = ['Interrompu', 'Interrupted'];
+const AZURE_STATUS_FAILURE = ['Échec', 'Failure'];
+
+const PURVIEW_OP_SUCCESS = 'UserLoggedIn';
+const PURVIEW_OP_FAILURE = 'UserLoginFailed';
+const PURVIEW_ERROR_FIELD = 'LogonError';
+const INTERRUPT_KEYWORD = 'Interrupt';
 
 const HEADER_MAP = {
   user: ["Nom d'utilisateur", 'Username', 'UserId'],
@@ -16,10 +33,9 @@ const HEADER_MAP = {
     'Multifactor authentication auth method',
   ],
   status: ['Statut', 'Status'],
+  reason: ["Raison de l'échec", 'Failure reason', 'ResultReason'],
   auditData: ['AuditData'],
 };
-
-const SUCCESS_STATUS_VALUES = new Set(['Opération réussie', 'Success']);
 
 function isValidEmail(email: string): boolean {
   return email.includes('@') && email.includes('.');
@@ -78,6 +94,31 @@ function findIndexAny(headers: string[], candidates: string[]): number {
   return headers.findIndex((h) => candidates.includes(h));
 }
 
+/**
+ * Normalizes the reason string:
+ * 1. Strips trailing dot only if it is a single sentence (no other dots in the line).
+ * 2. Converts "Other" or empty values to "N/A".
+ */
+function normalizeReason(val: string | undefined): string {
+  let trimmed = val?.trim();
+  if (!trimmed) return 'N/A';
+
+  // Strip trailing dot only if there isn't already a dot elsewhere in the line
+  if (trimmed.endsWith('.')) {
+    const base = trimmed.slice(0, -1);
+    if (!base.includes('.')) {
+      trimmed = base.trim();
+    }
+  }
+
+  // Convert "Other" or empty results to "N/A"
+  if (trimmed === 'Other' || !trimmed) {
+    return 'N/A';
+  }
+
+  return trimmed;
+}
+
 export function parseCSV(fileContent: string): LogEntry[] {
   const content =
     fileContent.charCodeAt(0) === 0xfeff ? fileContent.slice(1) : fileContent;
@@ -99,6 +140,7 @@ export function parseCSV(fileContent: string): LogEntry[] {
     date: findIndexAny(headers, HEADER_MAP.date),
     app: findIndexAny(headers, HEADER_MAP.app),
     status: findIndexAny(headers, HEADER_MAP.status),
+    reason: findIndexAny(headers, HEADER_MAP.reason),
     compliant: findIndexAny(headers, HEADER_MAP.compliant),
     managed: findIndexAny(headers, HEADER_MAP.managed),
     os: findIndexAny(headers, HEADER_MAP.os),
@@ -127,11 +169,27 @@ export function parseCSV(fileContent: string): LogEntry[] {
         if (!auditStr) continue;
 
         const auditData = JSON.parse(auditStr);
+        const operation = auditData.Operation;
+
         if (
-          auditData.Operation !== 'UserLoggedIn' ||
+          (operation !== PURVIEW_OP_SUCCESS && operation !== PURVIEW_OP_FAILURE) ||
           !isValidIPAddress(auditData.ClientIP)
         )
           continue;
+
+        let status = 'N/A';
+        if (operation === PURVIEW_OP_SUCCESS) {
+          status = STATUS_SUCCESS;
+        } else if (operation === PURVIEW_OP_FAILURE) {
+          status = STATUS_FAILURE;
+        }
+
+        const rawReason = auditData[PURVIEW_ERROR_FIELD] || 'N/A';
+        
+        // If the error contains "Interrupt", it's considered Interrupted
+        if (status === STATUS_FAILURE && rawReason.includes(INTERRUPT_KEYWORD)) {
+          status = STATUS_INTERRUPTED;
+        }
 
         const deviceProps = auditData.DeviceProperties || [];
         const extendedProps = auditData.ExtendedProperties || [];
@@ -142,20 +200,22 @@ export function parseCSV(fileContent: string): LogEntry[] {
           user: fields[idx.user]?.trim() || 'Unknown',
           ip: auditData.ClientIP,
           timestamp: new Date(fields[idx.date]?.trim() || ''),
-          userAgent: findProp(extendedProps, 'UserAgent'),
-          os: capitalizeOS(findProp(deviceProps, 'OS')),
-          browser: findProp(deviceProps, 'BrowserType'),
-          compliant: findProp(deviceProps, 'IsCompliant')?.toLowerCase(),
+          userAgent: findProp(extendedProps, 'UserAgent') || 'N/A',
+          os: capitalizeOS(findProp(deviceProps, 'OS')) || 'N/A',
+          browser: findProp(deviceProps, 'BrowserType') || 'N/A',
+          compliant: findProp(deviceProps, 'IsCompliant')?.toLowerCase() || 'N/A',
           managed: findProp(
             deviceProps,
             'IsCompliantAndManaged'
-          )?.toLowerCase(),
+          )?.toLowerCase() || 'N/A',
+          status: status,
+          reason: normalizeReason(rawReason),
+          application: 'N/A',
+          mfaRequirement: 'N/A',
+          mfaMethod: 'N/A',
         });
       } else {
         if (idx.user === -1 || idx.ip === -1 || idx.date === -1) continue;
-
-        const status = idx.status !== -1 ? fields[idx.status]?.trim() : null;
-        if (status && !SUCCESS_STATUS_VALUES.has(status)) continue;
 
         const userId = fields[idx.user]?.trim();
         const ip = fields[idx.ip]?.trim();
@@ -165,18 +225,29 @@ export function parseCSV(fileContent: string): LogEntry[] {
         if (!ip || !isValidIPAddress(ip)) continue;
         if (!timeStr) continue;
 
+        let status = fields[idx.status]?.trim() || 'N/A';
+        if (AZURE_STATUS_SUCCESS.includes(status)) {
+          status = STATUS_SUCCESS;
+        } else if (AZURE_STATUS_INTERRUPTED.includes(status)) {
+          status = STATUS_INTERRUPTED;
+        } else if (AZURE_STATUS_FAILURE.includes(status)) {
+          status = STATUS_FAILURE;
+        }
+
         logs.push({
           user: userId,
           ip: ip,
           timestamp: new Date(timeStr),
-          application: fields[idx.app]?.trim(),
-          compliant: fields[idx.compliant]?.trim(),
-          managed: fields[idx.managed]?.trim(),
-          os: capitalizeOS(fields[idx.os]?.trim()),
-          browser: fields[idx.browser]?.trim(),
-          userAgent: fields[idx.ua]?.trim(),
-          mfaRequirement: fields[idx.mfaReq]?.trim(),
-          mfaMethod: fields[idx.mfaMethod]?.trim(),
+          application: fields[idx.app]?.trim() || 'N/A',
+          compliant: fields[idx.compliant]?.trim() || 'N/A',
+          managed: fields[idx.managed]?.trim() || 'N/A',
+          os: capitalizeOS(fields[idx.os]?.trim()) || 'N/A',
+          browser: fields[idx.browser]?.trim() || 'N/A',
+          userAgent: fields[idx.ua]?.trim() || 'N/A',
+          mfaRequirement: fields[idx.mfaReq]?.trim() || 'N/A',
+          mfaMethod: fields[idx.mfaMethod]?.trim() || 'N/A',
+          status: status,
+          reason: normalizeReason(fields[idx.reason]),
         });
       }
     } catch (e) {

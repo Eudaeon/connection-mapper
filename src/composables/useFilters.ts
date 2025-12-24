@@ -1,7 +1,10 @@
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, type Ref } from 'vue';
 import type { LogEntry, UserMapData } from '../types/index';
 
 const FILTERABLE_FIELDS: (keyof LogEntry)[] = [
+  'ip',
+  'status',
+  'reason',
   'application',
   'browser',
   'userAgent',
@@ -15,83 +18,147 @@ const FILTERABLE_FIELDS: (keyof LogEntry)[] = [
 const selectedFilters = ref<Map<string, Set<string>>>(new Map());
 
 export function useFilters(
-  allUsers: { value: UserMapData[] },
-  selectedUsers: { value: Set<string> }
+  allUsers: Ref<UserMapData[]>,
+  selectedUsers: Ref<Set<string>>,
+  startRange: Ref<number>,
+  endRange: Ref<number>
 ) {
-  const filterableCategories = computed(() => {
-    const discoveredCategories = new Map<string, Set<string>>();
-    const activeUsers = allUsers.value.filter((u) =>
-      selectedUsers.value.has(u.user)
-    );
+  const baseConnections = computed(() => {
+    const result: LogEntry[] = [];
+    const start = startRange.value;
+    const end = endRange.value;
 
-    for (const user of activeUsers) {
-      for (const conn of user.allConnections) {
-        for (const field of FILTERABLE_FIELDS) {
-          const value = conn[field];
-          if (value && typeof value === 'string') {
-            if (!discoveredCategories.has(field))
-              discoveredCategories.set(field, new Set());
-            discoveredCategories.get(field)!.add(value);
-          }
+    for (const userData of allUsers.value) {
+      for (const conn of userData.allConnections) {
+        const time = conn.timestamp.getTime();
+        if (time >= start && time <= end) {
+          result.push(conn);
+        }
+      }
+    }
+    return result;
+  });
+
+  const filterableCategories = computed(() => {
+    const discovered = new Map<string, Set<string>>();
+    for (const conn of baseConnections.value) {
+      for (const field of FILTERABLE_FIELDS) {
+        const val = conn[field];
+        if (val && typeof val === 'string') {
+          if (!discovered.has(field)) discovered.set(field, new Set());
+          discovered.get(field)!.add(val);
         }
       }
     }
 
-    const orderedCategories = new Map<string, Set<string>>();
+    const ordered = new Map<string, Set<string>>();
     for (const field of FILTERABLE_FIELDS) {
-      if (discoveredCategories.has(field)) {
-        orderedCategories.set(field, discoveredCategories.get(field)!);
+      if (discovered.has(field)) {
+        const values = discovered.get(field)!;
+        if (values.size <= 1) continue;
+        ordered.set(field, values);
       }
     }
-    return orderedCategories;
+    return ordered;
+  });
+
+  const applicableCounts = computed(() => {
+    const categoryCounts = new Map<string, Map<string, number>>();
+    const userCounts = new Map<string, number>();
+    const connections = baseConnections.value;
+    const currentFilters = selectedFilters.value;
+    const currentUsers = selectedUsers.value;
+
+    const updateMapCount = (cat: string, val: string) => {
+      if (!categoryCounts.has(cat)) categoryCounts.set(cat, new Map());
+      const m = categoryCounts.get(cat)!;
+      m.set(val, (m.get(val) || 0) + 1);
+    };
+
+    const incrementAllFields = (conn: LogEntry) => {
+      for (const field of FILTERABLE_FIELDS) {
+        const val = conn[field];
+        if (typeof val === 'string') updateMapCount(field, val);
+      }
+    };
+
+    for (const conn of connections) {
+      let failedCategories: string[] = [];
+
+      if (!currentUsers.has(conn.user)) {
+        failedCategories.push('user');
+      }
+
+      for (const [cat, set] of currentFilters.entries()) {
+        const val = conn[cat as keyof LogEntry];
+        if (val && typeof val === 'string' && !set.has(val)) {
+          failedCategories.push(cat);
+        }
+      }
+
+      const failCount = failedCategories.length;
+
+      if (failCount === 0) {
+        incrementAllFields(conn);
+        userCounts.set(conn.user, (userCounts.get(conn.user) || 0) + 1);
+      } else if (failCount === 1) {
+        const failedCat = failedCategories[0]!;
+        if (failedCat === 'user') {
+          incrementAllFields(conn);
+        } else {
+          const val = conn[failedCat as keyof LogEntry];
+          if (typeof val === 'string') updateMapCount(failedCat, val);
+          userCounts.set(conn.user, (userCounts.get(conn.user) || 0) + 1);
+        }
+      }
+    }
+
+    return { categories: categoryCounts, users: userCounts };
   });
 
   watch(
     filterableCategories,
-    (newCategories, oldCategories) => {
-      const newSelectedFilters = new Map(selectedFilters.value);
-      for (const [category, newValues] of newCategories) {
-        const oldValues = oldCategories?.get(category);
-        const currentSelection = newSelectedFilters.get(category);
+    (newCats, oldCats) => {
+      const newSelected = new Map(selectedFilters.value);
+      let changed = false;
 
-        const wasAllSelected =
-          !currentSelection ||
-          (oldValues && currentSelection.size === oldValues.size);
+      for (const [cat, newVals] of newCats) {
+        const oldVals = oldCats?.get(cat);
+        const current = newSelected.get(cat);
+        
+        if (!current) {
+          newSelected.set(cat, new Set(newVals));
+          changed = true;
+          continue;
+        }
 
-        if (wasAllSelected) {
-          newSelectedFilters.set(category, new Set(newValues));
-        } else {
-          const preserved = new Set<string>();
-          if (currentSelection) {
-            for (const val of currentSelection) {
-              if (newValues.has(val)) preserved.add(val);
-            }
-          }
-          newSelectedFilters.set(category, preserved);
+        const wasAllSelected = oldVals && current.size === oldVals.size;
+        if (wasAllSelected && current.size !== newVals.size) {
+          newSelected.set(cat, new Set(newVals));
+          changed = true;
         }
       }
-      for (const category of newSelectedFilters.keys()) {
-        if (!newCategories.has(category)) newSelectedFilters.delete(category);
-      }
-      selectedFilters.value = newSelectedFilters;
+
+      if (changed) selectedFilters.value = newSelected;
     },
-    { immediate: true }
+    { immediate: true, deep: true }
   );
+
+  function clearFilters() {
+    selectedFilters.value = new Map();
+  }
 
   function passesCategoryFilters(conn: LogEntry): boolean {
     for (const [category, selectedSet] of selectedFilters.value.entries()) {
-      const key = category as keyof LogEntry;
-      const connValue = conn[key];
-      if (connValue && typeof connValue === 'string') {
-        if (!selectedSet.has(connValue)) return false;
-      }
+      const val = conn[category as keyof LogEntry];
+      if (val && typeof val === 'string' && !selectedSet.has(val)) return false;
     }
     return true;
   }
 
   function toggleFilter(category: string, value: string) {
     const newMap = new Map(selectedFilters.value);
-    const set = new Set(newMap.get(category));
+    const set = new Set(newMap.get(category) || []);
     if (set.has(value)) set.delete(value);
     else set.add(value);
     newMap.set(category, set);
@@ -103,7 +170,6 @@ export function useFilters(
     const all = filterableCategories.value.get(category);
     const current = selectedFilters.value.get(category);
     if (!all || !current) return;
-
     newMap.set(category, current.size === all.size ? new Set() : new Set(all));
     selectedFilters.value = newMap;
   }
@@ -111,8 +177,11 @@ export function useFilters(
   return {
     selectedFilters,
     filterableCategories,
+    applicableCounts: computed(() => applicableCounts.value.categories),
+    userMatchCounts: computed(() => applicableCounts.value.users),
     passesCategoryFilters,
     toggleFilter,
     toggleSelectAllFilterCategory,
+    clearFilters,
   };
 }

@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-vue-next';
 const {
   allUsers,
   selectedUsers,
+  userMatchCounts,
   toggleUser,
   allUsersSelected,
   toggleSelectAll,
@@ -16,10 +17,20 @@ const isPartiallySelected = computed(() => {
   if (allUsers.value.length === 0) return false;
   return !allUsersSelected.value && selectedUsers.value.size > 0;
 });
+
+function getMatchCount(username: string): number {
+  return userMatchCounts.value.get(username) || 0;
+}
+
+function isMuted(username: string): boolean {
+  const isSelected = selectedUsers.value.has(username);
+  const isApplicable = getMatchCount(username) > 0;
+  return !isSelected || !isApplicable;
+}
 </script>
 
 <template>
-  <div v-if="allUsers.length > 0" id="user-panel-wrapper">
+  <div v-if="allUsers.length > 1" id="user-panel-wrapper">
     <button
       class="collapse-toggle collapse-toggle-right"
       title="Toggle User Panel"
@@ -57,7 +68,12 @@ const isPartiallySelected = computed(() => {
           </label>
         </div>
         <ul class="user-list">
-          <li v-for="user in allUsers" :key="user.user" class="user-item">
+          <li 
+            v-for="user in allUsers" 
+            :key="user.user" 
+            class="user-item"
+            :class="{ 'is-muted': isMuted(user.user) }"
+          >
             <input
               :id="`user-${user.user}`"
               type="checkbox"
@@ -70,6 +86,7 @@ const isPartiallySelected = computed(() => {
             ></span>
             <label :for="`user-${user.user}`" :title="user.user">
               {{ user.user }}
+              <span class="match-count">({{ getMatchCount(user.user) }})</span>
             </label>
           </li>
         </ul>
@@ -117,7 +134,7 @@ h4 {
 
 .select-all-container {
   display: flex;
-  align-items: center;
+  align-items: flex-start; /* checkbox top-aligned with wrapped text */
   gap: 0.5rem;
   padding: 0.25rem 0;
   border-bottom: 1px dashed var(--color-border);
@@ -128,6 +145,9 @@ h4 {
   font-weight: 600;
   cursor: pointer;
   user-select: none;
+  /* Ensure wrap */
+  white-space: normal;
+  word-break: break-word;
 }
 .select-all-container label span {
   font-weight: 500;
@@ -136,6 +156,7 @@ h4 {
 .select-all-container input[type='checkbox'] {
   cursor: pointer;
   flex-shrink: 0;
+  margin-top: 4px;
 }
 
 .user-list {
@@ -148,11 +169,23 @@ h4 {
 
 .user-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start; /* checkbox top-aligned with wrapped text */
   gap: 0.5rem;
   padding: 0.25rem 0;
   content-visibility: auto;
   contain-intrinsic-size: 0 28px;
+  transition: opacity 0.2s;
+}
+
+.user-item.is-muted {
+  opacity: 0.45;
+}
+
+.match-count {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-left: 0.25rem;
+  font-weight: 400;
 }
 
 .color-swatch {
@@ -161,19 +194,21 @@ h4 {
   border-radius: 3px;
   border: 1px solid var(--color-border);
   flex-shrink: 0;
+  margin-top: 6px; /* align with wrapped text top */
 }
 
 .user-item label {
   font-weight: 500;
   cursor: pointer;
   user-select: none;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* Remove cropping */
+  white-space: normal;
+  word-break: break-word;
 }
 .user-item input[type='checkbox'] {
   cursor: pointer;
   flex-shrink: 0;
+  margin-top: 4px;
 }
 
 .collapse-toggle {

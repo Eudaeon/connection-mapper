@@ -2,11 +2,13 @@ export interface LogEntry {
   user: string;
   ip: string;
   timestamp: Date;
+  reason?: string;
 
   // Fields for Sign-in Log
   application?: string;
   mfaRequirement?: string;
   mfaMethod?: string;
+  status?: string;
 
   // Fields for Audit Log
   userAgent?: string;
