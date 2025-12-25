@@ -68,9 +68,9 @@ function isMuted(username: string): boolean {
           </label>
         </div>
         <ul class="user-list">
-          <li 
-            v-for="user in allUsers" 
-            :key="user.user" 
+          <li
+            v-for="user in allUsers"
+            :key="user.user"
             class="user-item"
             :class="{ 'is-muted': isMuted(user.user) }"
           >
@@ -134,7 +134,7 @@ h4 {
 
 .select-all-container {
   display: flex;
-  align-items: flex-start; /* checkbox top-aligned with wrapped text */
+  align-items: flex-start;
   gap: 0.5rem;
   padding: 0.25rem 0;
   border-bottom: 1px dashed var(--color-border);
@@ -145,7 +145,6 @@ h4 {
   font-weight: 600;
   cursor: pointer;
   user-select: none;
-  /* Ensure wrap */
   white-space: normal;
   word-break: break-word;
 }
@@ -169,7 +168,7 @@ h4 {
 
 .user-item {
   display: flex;
-  align-items: flex-start; /* checkbox top-aligned with wrapped text */
+  align-items: flex-start;
   gap: 0.5rem;
   padding: 0.25rem 0;
   content-visibility: auto;
@@ -194,14 +193,13 @@ h4 {
   border-radius: 3px;
   border: 1px solid var(--color-border);
   flex-shrink: 0;
-  margin-top: 6px; /* align with wrapped text top */
+  margin-top: 6px;
 }
 
 .user-item label {
   font-weight: 500;
   cursor: pointer;
   user-select: none;
-  /* Remove cropping */
   white-space: normal;
   word-break: break-word;
 }

@@ -1,7 +1,11 @@
 import { parseCSV } from './csvParser';
 import type { GeolocationData, Connection, UserMapData } from '../types/index';
 
-type ProgressReporter = (message: string, progressValue?: number, progressText?: string) => void;
+type ProgressReporter = (
+  message: string,
+  progressValue?: number,
+  progressText?: string
+) => void;
 
 const RETRY_DELAY_MS = 2000;
 const MAX_RETRIES = 3;
@@ -20,8 +24,9 @@ async function geocodeIPs(
   }
 
   const ipChunks: string[][] = [];
-  for (let i = 0; i < ips.length; i += 100) ipChunks.push(ips.slice(i, i + 100));
-  
+  for (let i = 0; i < ips.length; i += 100)
+    ipChunks.push(ips.slice(i, i + 100));
+
   const totalChunks = ipChunks.length;
   let completedChunks = 0;
   const progressRange = endProgress - startProgress;
@@ -30,11 +35,17 @@ async function geocodeIPs(
     let attempts = 0;
     while (attempts < MAX_RETRIES) {
       try {
-        const payload = chunk.map(ip => ({ query: ip, fields: 'query,lon,lat' }));
-        const response = await fetch('https://ip-geolocation-api.eudaeon.workers.dev/', { 
-          method: 'POST', 
-          body: JSON.stringify(payload) 
-        });
+        const payload = chunk.map((ip) => ({
+          query: ip,
+          fields: 'query,lon,lat',
+        }));
+        const response = await fetch(
+          'https://ip-geolocation-api.eudaeon.workers.dev/',
+          {
+            method: 'POST',
+            body: JSON.stringify(payload),
+          }
+        );
         if (!response.ok) throw new Error(`${response.status}`);
 
         const geoData: GeolocationData[] = await response.json();
@@ -43,17 +54,23 @@ async function geocodeIPs(
             geoMap.set(geo.query, geo);
           }
         }
-        
+
         completedChunks++;
         onProgress(
-          `Geocoding IPs...`, 
-          Math.min(Math.round(startProgress + (completedChunks / totalChunks) * progressRange), endProgress - 1), 
+          `Geocoding IPs...`,
+          Math.min(
+            Math.round(
+              startProgress + (completedChunks / totalChunks) * progressRange
+            ),
+            endProgress - 1
+          ),
           `${geoMap.size}`
         );
         return;
       } catch (e) {
         attempts++;
-        if (attempts < MAX_RETRIES) await new Promise(r => setTimeout(r, RETRY_DELAY_MS * attempts));
+        if (attempts < MAX_RETRIES)
+          await new Promise((r) => setTimeout(r, RETRY_DELAY_MS * attempts));
       }
     }
   };
@@ -74,15 +91,27 @@ async function geocodeIPs(
 }
 
 function assignColors(count: number): string[] {
-  return Array.from({ length: count }, (_, i) => `hsl(${(i * 360) / count}, 90%, 70%)`);
+  return Array.from(
+    { length: count },
+    (_, i) => `hsl(${(i * 360) / count}, 90%, 70%)`
+  );
 }
 
-export async function processLogFile(file: File, onProgress: ProgressReporter): Promise<UserMapData[]> {
+export async function processLogFile(
+  file: File,
+  onProgress: ProgressReporter
+): Promise<UserMapData[]> {
   onProgress('Reading file...', 5, '');
   const logs = parseCSV(await file.text());
-  if (logs.length === 0) throw new Error('No valid log entries found in the file.');
+  if (logs.length === 0)
+    throw new Error('No valid log entries found in the file.');
 
-  const geoData = await geocodeIPs([...new Set(logs.map(log => log.ip))], onProgress, 10, 90);
+  const geoData = await geocodeIPs(
+    [...new Set(logs.map((log) => log.ip))],
+    onProgress,
+    10,
+    90
+  );
   onProgress('Processing connections...', 95);
 
   const userGroups = new Map<string, Connection[]>();
@@ -95,18 +124,21 @@ export async function processLogFile(file: File, onProgress: ProgressReporter): 
     }
   }
 
-  if (userGroups.size === 0) throw new Error('Could not geocode any IP addresses from the file.');
+  if (userGroups.size === 0)
+    throw new Error('Could not geocode any IP addresses from the file.');
 
   const sortedUsers = [...userGroups.keys()].sort((a, b) => a.localeCompare(b));
   const colors = assignColors(sortedUsers.length);
 
   return sortedUsers.map((user, i): UserMapData => {
-    const conns = userGroups.get(user)!.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-    return { 
-      user, 
-      color: colors[i] || '#7dd3fc', 
-      allConnections: conns, 
-      latestConnection: conns[conns.length - 1]! 
+    const conns = userGroups
+      .get(user)!
+      .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+    return {
+      user,
+      color: colors[i] || '#7dd3fc',
+      allConnections: conns,
+      latestConnection: conns[conns.length - 1]!,
     };
   });
 }

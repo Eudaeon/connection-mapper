@@ -21,7 +21,7 @@ const iconCache = new Map<string, L.DivIcon>();
 const zoomCache = new Map<number, MarkerData[]>();
 const svgPathCache = new Map<string, string>();
 
-const popupPriority = new Map<string, number>(); 
+const popupPriority = new Map<string, number>();
 const expandedSections = new Set<string>();
 
 let isUpdatingMap = false;
@@ -34,11 +34,16 @@ function bringToFront(el: HTMLElement, ips?: string[]) {
   priorityCounter++;
   el.style.zIndex = highestZIndex.toString();
   if (ips) {
-    ips.forEach(ip => popupPriority.set(ip, priorityCounter));
+    ips.forEach((ip) => popupPriority.set(ip, priorityCounter));
   }
 }
 
-function getArcPath(center: number, radius: number, startAngle: number, endAngle: number): string {
+function getArcPath(
+  center: number,
+  radius: number,
+  startAngle: number,
+  endAngle: number
+): string {
   const key = `${radius}-${startAngle}-${endAngle}`;
   if (svgPathCache.has(key)) return svgPathCache.get(key)!;
 
@@ -72,9 +77,15 @@ function createMarkerIcon(markerData: MarkerData): L.DivIcon {
   const center = size / 2;
   const radius = size / 2;
   const innerRadius = isCluster ? radius - 6 : 0;
-  const stroke = document.documentElement.classList.contains('dark') ? '#e5e7eb' : '#374151';
-  const bgColor = document.documentElement.classList.contains('dark') ? '#1f2937' : '#ffffff';
-  const textColor = document.documentElement.classList.contains('dark') ? '#e5e7eb' : '#111827';
+  const stroke = document.documentElement.classList.contains('dark')
+    ? '#e5e7eb'
+    : '#374151';
+  const bgColor = document.documentElement.classList.contains('dark')
+    ? '#1f2937'
+    : '#ffffff';
+  const textColor = document.documentElement.classList.contains('dark')
+    ? '#e5e7eb'
+    : '#111827';
 
   let svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">`;
 
@@ -97,7 +108,13 @@ function createMarkerIcon(markerData: MarkerData): L.DivIcon {
   }
 
   svg += '</svg>';
-  const icon = L.divIcon({ html: svg, className: 'custom-map-icon', iconSize: [size, size], iconAnchor: [center, center], popupAnchor: [0, -center] });
+  const icon = L.divIcon({
+    html: svg,
+    className: 'custom-map-icon',
+    iconSize: [size, size],
+    iconAnchor: [center, center],
+    popupAnchor: [0, -center],
+  });
   iconCache.set(cacheKey, icon);
   return icon;
 }
@@ -112,12 +129,18 @@ function createPopupContent(markerData: MarkerData): string {
     content += `<h3>${markerData.ips[0]}</h3>`;
   }
 
-  const sortedUsers = Array.from(markerData.users.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  const sortedUsers = Array.from(markerData.users.entries()).sort((a, b) =>
+    a[0].localeCompare(b[0])
+  );
 
   for (const [user, data] of sortedUsers) {
-    const isExpanded = markerData.ips.some(ip => expandedSections.has(`${ip}|${user}`));
+    const isExpanded = markerData.ips.some((ip) =>
+      expandedSections.has(`${ip}|${user}`)
+    );
     content += `<details class="user-details" ${isExpanded ? 'open' : ''} data-user="${user}"><summary><span class="user-dot" style="background-color: ${data.color};"></span><strong>${user}</strong><span class="conn-count">(${data.connections.length})</span></summary><ul class="connection-list">`;
-    data.connections.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    data.connections.sort(
+      (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+    );
 
     for (const conn of data.connections) {
       content += `<li class="connection-item"><div class="connection-header"><div class="timestamp-stack"><div class="ts-date">${conn.timestamp.toLocaleDateString()}</div><div class="ts-time">${conn.timestamp.toLocaleTimeString()}</div></div>${markerData.ips.length > 1 ? `<span class="connection-ip">${conn.ip}</span>` : ''}</div><ul class="connection-details"><li><span class="cat-label">Status:</span> ${conn.status || 'N/A'}</li><li><span class="cat-label">Reason:</span> ${conn.reason || 'N/A'}</li><li><span class="cat-label">Application:</span> ${conn.application || 'N/A'}</li><li><span class="cat-label">Browser:</span> ${conn.browser || 'N/A'}</li><li><span class="cat-label">OS:</span> ${conn.os || 'N/A'}</li><li><span class="cat-label">Managed:</span> ${conn.managed || 'N/A'}</li><li><span class="cat-label">Compliant:</span> ${conn.compliant || 'N/A'}</li><li><span class="cat-label">MFA Requirement:</span> ${conn.mfaRequirement || 'N/A'}</li><li><span class="cat-label">MFA Method:</span> ${conn.mfaMethod || 'N/A'}</li></ul></li>`;
@@ -143,8 +166,14 @@ function initMap() {
     });
 
     const isDark = document.documentElement.classList.contains('dark');
-    const tileUrl = isDark ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
-    const tileLayer = L.tileLayer(tileUrl, { subdomains: 'abcd', maxZoom: 20, noWrap: true }).addTo(map);
+    const tileUrl = isDark
+      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+      : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+    const tileLayer = L.tileLayer(tileUrl, {
+      subdomains: 'abcd',
+      maxZoom: 20,
+      noWrap: true,
+    }).addTo(map);
     (map as any).tileLayer = tileLayer;
     markersLayer.addTo(map);
 
@@ -154,12 +183,13 @@ function initMap() {
       if (el) {
         if (!isUpdatingMap) bringToFront(el, markerIps);
         el.addEventListener('mousedown', () => bringToFront(el, markerIps));
-        el.querySelectorAll('details.user-details').forEach(details => {
+        el.querySelectorAll('details.user-details').forEach((details) => {
           details.addEventListener('toggle', () => {
             const user = details.getAttribute('data-user');
             if (user && markerIps) {
-              markerIps.forEach(ip => {
-                if ((details as HTMLDetailsElement).open) expandedSections.add(`${ip}|${user}`);
+              markerIps.forEach((ip) => {
+                if ((details as HTMLDetailsElement).open)
+                  expandedSections.add(`${ip}|${user}`);
                 else expandedSections.delete(`${ip}|${user}`);
               });
             }
@@ -171,7 +201,8 @@ function initMap() {
     map.on('popupclose', (e) => {
       if (!isUpdatingMap) {
         const markerIps = (e.popup as any)._markerIps;
-        if (markerIps) markerIps.forEach((ip: string) => popupPriority.delete(ip));
+        if (markerIps)
+          markerIps.forEach((ip: string) => popupPriority.delete(ip));
       }
     });
 
@@ -201,11 +232,18 @@ function updateMap(shouldFitBounds = false) {
   markersLayer.clearLayers();
   if (shouldFitBounds) iconCache.clear();
 
-  const markersToReopen: { marker: L.Marker, priority: number }[] = [];
+  const markersToReopen: { marker: L.Marker; priority: number }[] = [];
 
   for (const markerData of finalMarkers) {
-    const marker = L.marker([markerData.lat, markerData.lon], { icon: createMarkerIcon(markerData) });
-    const popup = L.popup({ autoClose: false, closeOnClick: false, autoPan: false, maxWidth: 320 }).setContent(createPopupContent(markerData));
+    const marker = L.marker([markerData.lat, markerData.lon], {
+      icon: createMarkerIcon(markerData),
+    });
+    const popup = L.popup({
+      autoClose: false,
+      closeOnClick: false,
+      autoPan: false,
+      maxWidth: 320,
+    }).setContent(createPopupContent(markerData));
     (popup as any)._markerIps = markerData.ips;
     marker.bindPopup(popup).on('click', () => {
       const p = marker.getPopup();
@@ -218,15 +256,23 @@ function updateMap(shouldFitBounds = false) {
     markersLayer.addLayer(marker);
     let maxPriority = -1;
     for (const ip of markerData.ips) {
-      if (popupPriority.has(ip)) maxPriority = Math.max(maxPriority, popupPriority.get(ip)!);
+      if (popupPriority.has(ip))
+        maxPriority = Math.max(maxPriority, popupPriority.get(ip)!);
     }
-    if (maxPriority !== -1) markersToReopen.push({ marker, priority: maxPriority });
+    if (maxPriority !== -1)
+      markersToReopen.push({ marker, priority: maxPriority });
   }
 
-  markersToReopen.sort((a, b) => a.priority - b.priority).forEach(item => item.marker.openPopup());
+  markersToReopen
+    .sort((a, b) => a.priority - b.priority)
+    .forEach((item) => item.marker.openPopup());
   isUpdatingMap = false;
   if (shouldFitBounds && markersLayer.getLayers().length > 0) {
-    map.fitBounds(L.featureGroup(markersLayer.getLayers() as L.Layer[]).getBounds().pad(0.1));
+    map.fitBounds(
+      L.featureGroup(markersLayer.getLayers() as L.Layer[])
+        .getBounds()
+        .pad(0.1)
+    );
   }
 }
 
@@ -236,20 +282,31 @@ onMounted(() => {
   const themeObserver = new MutationObserver(() => {
     if (map && (map as any).tileLayer) {
       const isDark = document.documentElement.classList.contains('dark');
-      (map as any).tileLayer.setUrl(isDark ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png');
+      (map as any).tileLayer.setUrl(
+        isDark
+          ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+          : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+      );
       iconCache.clear();
       updateMap(false);
     }
   });
-  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['class'],
+  });
 });
 
-watch(() => props.users, (newUsers) => {
-  zoomCache.clear();
-  const isNewData = allUsers.value !== lastAllUsersRef;
-  if (isNewData) lastAllUsersRef = allUsers.value;
-  debouncedUpdate(isNewData && newUsers.length > 0);
-}, { deep: true });
+watch(
+  () => props.users,
+  (newUsers) => {
+    zoomCache.clear();
+    const isNewData = allUsers.value !== lastAllUsersRef;
+    if (isNewData) lastAllUsersRef = allUsers.value;
+    debouncedUpdate(isNewData && newUsers.length > 0);
+  },
+  { deep: true }
+);
 </script>
 
 <template>
@@ -257,11 +314,52 @@ watch(() => props.users, (newUsers) => {
 </template>
 
 <style scoped>
-#map-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
-:deep(.map-popup-content) { font-family: system-ui, sans-serif; }
-:deep(.user-details summary) { cursor: pointer; display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0; position: sticky; top: -1px; background-color: var(--color-popup-bg); z-index: 10; border-bottom: 1px solid var(--color-border); }
-:deep(.user-dot) { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
-:deep(.connection-header) { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; width: 100%; }
-:deep(.ts-date) { font-weight: 600; color: var(--color-text); }
-:deep(.connection-ip) { font-size: 0.85rem; font-weight: 600; background: var(--color-button-hover-bg); padding: 2px 6px; border-radius: 4px; word-break: break-all; }
+#map-container {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+}
+:deep(.map-popup-content) {
+  font-family: system-ui, sans-serif;
+}
+:deep(.user-details summary) {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  position: sticky;
+  top: -1px;
+  background-color: var(--color-popup-bg);
+  z-index: 10;
+  border-bottom: 1px solid var(--color-border);
+}
+:deep(.user-dot) {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+}
+:deep(.connection-header) {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  width: 100%;
+}
+:deep(.ts-date) {
+  font-weight: 600;
+  color: var(--color-text);
+}
+:deep(.connection-ip) {
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: var(--color-button-hover-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  word-break: break-all;
+}
 </style>

@@ -1,13 +1,9 @@
-// connection-mapper/src/services/csvParser.ts
-
 import type { LogEntry } from '../types/index';
 
-// Global Variables for Parsing Keywords
 const STATUS_SUCCESS = 'Success';
 const STATUS_FAILURE = 'Failure';
 const STATUS_INTERRUPTED = 'Interrupted';
 
-// Lists for status mapping
 const AZURE_STATUS_SUCCESS = ['Opération réussie', 'Success'];
 const AZURE_STATUS_INTERRUPTED = ['Interrompu', 'Interrupted'];
 const AZURE_STATUS_FAILURE = ['Échec', 'Failure'];
@@ -94,16 +90,10 @@ function findIndexAny(headers: string[], candidates: string[]): number {
   return headers.findIndex((h) => candidates.includes(h));
 }
 
-/**
- * Normalizes the reason string:
- * 1. Strips trailing dot only if it is a single sentence (no other dots in the line).
- * 2. Converts "Other" or empty values to "N/A".
- */
 function normalizeReason(val: string | undefined): string {
   let trimmed = val?.trim();
   if (!trimmed) return 'N/A';
 
-  // Strip trailing dot only if there isn't already a dot elsewhere in the line
   if (trimmed.endsWith('.')) {
     const base = trimmed.slice(0, -1);
     if (!base.includes('.')) {
@@ -111,7 +101,6 @@ function normalizeReason(val: string | undefined): string {
     }
   }
 
-  // Convert "Other" or empty results to "N/A"
   if (trimmed === 'Other' || !trimmed) {
     return 'N/A';
   }
@@ -172,7 +161,8 @@ export function parseCSV(fileContent: string): LogEntry[] {
         const operation = auditData.Operation;
 
         if (
-          (operation !== PURVIEW_OP_SUCCESS && operation !== PURVIEW_OP_FAILURE) ||
+          (operation !== PURVIEW_OP_SUCCESS &&
+            operation !== PURVIEW_OP_FAILURE) ||
           !isValidIPAddress(auditData.ClientIP)
         )
           continue;
@@ -185,9 +175,11 @@ export function parseCSV(fileContent: string): LogEntry[] {
         }
 
         const rawReason = auditData[PURVIEW_ERROR_FIELD] || 'N/A';
-        
-        // If the error contains "Interrupt", it's considered Interrupted
-        if (status === STATUS_FAILURE && rawReason.includes(INTERRUPT_KEYWORD)) {
+
+        if (
+          status === STATUS_FAILURE &&
+          rawReason.includes(INTERRUPT_KEYWORD)
+        ) {
           status = STATUS_INTERRUPTED;
         }
 
@@ -203,11 +195,11 @@ export function parseCSV(fileContent: string): LogEntry[] {
           userAgent: findProp(extendedProps, 'UserAgent') || 'N/A',
           os: capitalizeOS(findProp(deviceProps, 'OS')) || 'N/A',
           browser: findProp(deviceProps, 'BrowserType') || 'N/A',
-          compliant: findProp(deviceProps, 'IsCompliant')?.toLowerCase() || 'N/A',
-          managed: findProp(
-            deviceProps,
-            'IsCompliantAndManaged'
-          )?.toLowerCase() || 'N/A',
+          compliant:
+            findProp(deviceProps, 'IsCompliant')?.toLowerCase() || 'N/A',
+          managed:
+            findProp(deviceProps, 'IsCompliantAndManaged')?.toLowerCase() ||
+            'N/A',
           status: status,
           reason: normalizeReason(rawReason),
           application: 'N/A',

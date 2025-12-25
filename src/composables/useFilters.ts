@@ -125,7 +125,7 @@ export function useFilters(
       for (const [cat, newVals] of newCats) {
         const oldVals = oldCats?.get(cat);
         const current = newSelected.get(cat);
-        
+
         if (!current) {
           newSelected.set(cat, new Set(newVals));
           changed = true;

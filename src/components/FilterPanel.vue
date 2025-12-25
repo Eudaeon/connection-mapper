@@ -260,7 +260,9 @@ function getVersionOnly(fullValue: string, category: string): string {
             <ul class="filter-list">
               <template
                 v-if="
-                  category === 'os' || category === 'browser' || category === 'ip'
+                  category === 'os' ||
+                  category === 'browser' ||
+                  category === 'ip'
                 "
               >
                 <template
@@ -320,7 +322,9 @@ function getVersionOnly(fullValue: string, category: string): string {
                             :title="value"
                           >
                             {{ getVersionOnly(value, category) }}
-                            <span class="match-count">({{ getMatchCount(category, value) }})</span>
+                            <span class="match-count"
+                              >({{ getMatchCount(category, value) }})</span
+                            >
                           </label>
                         </li>
                       </ul>
@@ -342,7 +346,9 @@ function getVersionOnly(fullValue: string, category: string): string {
                     />
                     <label :for="`filter-${category}-${value}`" :title="value">
                       {{ value }}
-                      <span class="match-count">({{ getMatchCount(category, value) }})</span>
+                      <span class="match-count"
+                        >({{ getMatchCount(category, value) }})</span
+                      >
                     </label>
                   </li>
                 </template>
@@ -362,7 +368,9 @@ function getVersionOnly(fullValue: string, category: string): string {
                     />
                     <label :for="`filter-${category}-${value}`" :title="value">
                       {{ value }}
-                      <span class="match-count">({{ getMatchCount(category, value) }})</span>
+                      <span class="match-count"
+                        >({{ getMatchCount(category, value) }})</span
+                      >
                     </label>
                   </li>
                 </template>
@@ -383,7 +391,9 @@ function getVersionOnly(fullValue: string, category: string): string {
                   />
                   <label :for="`filter-${category}-${value}`" :title="value">
                     {{ value }}
-                    <span class="match-count">({{ getMatchCount(category, value) }})</span>
+                    <span class="match-count"
+                      >({{ getMatchCount(category, value) }})</span
+                    >
                   </label>
                 </li>
               </template>
@@ -450,7 +460,7 @@ h4 {
 
 .category-summary-content {
   display: inline-flex;
-  align-items: flex-start; /* checkbox top-aligned with wrapped text */
+  align-items: flex-start;
   gap: 0.5rem;
 }
 
@@ -464,8 +474,7 @@ h4 {
   font-weight: 600;
   cursor: pointer;
   user-select: none;
-  /* Remove cropping */
-  white-space: normal; 
+  white-space: normal;
   word-break: break-word;
 }
 
@@ -482,7 +491,7 @@ h4 {
 
 .filter-item {
   display: flex;
-  align-items: flex-start; /* checkbox top-aligned with wrapped text */
+  align-items: flex-start;
   gap: 0.5rem;
   padding: 0.25rem 0;
   transition: opacity 0.2s;
@@ -503,7 +512,6 @@ h4 {
   font-size: 0.9rem;
   cursor: pointer;
   user-select: none;
-  /* Remove cropping */
   white-space: normal;
   word-break: break-word;
 }
@@ -523,7 +531,7 @@ h4 {
 
 .group-summary-content {
   display: inline-flex;
-  align-items: flex-start; /* checkbox top-aligned with wrapped text */
+  align-items: flex-start;
   gap: 0.5rem;
 }
 
@@ -537,7 +545,6 @@ h4 {
   font-weight: 500;
   cursor: pointer;
   user-select: none;
-  /* Remove cropping */
   white-space: normal;
   word-break: break-word;
 }
