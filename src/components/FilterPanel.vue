@@ -65,6 +65,16 @@ function isMuted(category: string, value: string): boolean {
   return !isSelected || !isApplicable;
 }
 
+function isCategoryMuted(category: string): boolean {
+  const counts = applicableCounts.value.get(category);
+  if (!counts) return true;
+  let totalMatches = 0;
+  for (const count of counts.values()) {
+    totalMatches += count;
+  }
+  return totalMatches === 0;
+}
+
 const groupedCategoriesCache = new Map<
   string,
   { groups: Map<string, string[]>; ungrouped: string[] }
@@ -238,6 +248,7 @@ function getVersionOnly(fullValue: string, category: string): string {
             v-for="[category, values] in filterableCategories"
             :key="category"
             class="filter-category"
+            :class="{ 'category-muted': isCategoryMuted(category) }"
           >
             <summary>
               <div class="category-summary-content">
@@ -456,6 +467,10 @@ h4 {
   cursor: pointer;
   padding: 4px 0;
   user-select: none;
+}
+
+.category-muted {
+  opacity: 0.45;
 }
 
 .category-summary-content {

@@ -27,8 +27,11 @@ export function useFilters(
     const result: LogEntry[] = [];
     const start = startRange.value;
     const end = endRange.value;
+    const activeUsers = selectedUsers.value;
 
     for (const userData of allUsers.value) {
+      if (!activeUsers.has(userData.user)) continue;
+
       for (const conn of userData.allConnections) {
         const time = conn.timestamp.getTime();
         if (time >= start && time <= end) {
@@ -67,7 +70,6 @@ export function useFilters(
     const userCounts = new Map<string, number>();
     const connections = baseConnections.value;
     const currentFilters = selectedFilters.value;
-    const currentUsers = selectedUsers.value;
 
     const updateMapCount = (cat: string, val: string) => {
       if (!categoryCounts.has(cat)) categoryCounts.set(cat, new Map());
@@ -85,10 +87,6 @@ export function useFilters(
     for (const conn of connections) {
       let failedCategories: string[] = [];
 
-      if (!currentUsers.has(conn.user)) {
-        failedCategories.push('user');
-      }
-
       for (const [cat, set] of currentFilters.entries()) {
         const val = conn[cat as keyof LogEntry];
         if (val && typeof val === 'string' && !set.has(val)) {
@@ -103,13 +101,9 @@ export function useFilters(
         userCounts.set(conn.user, (userCounts.get(conn.user) || 0) + 1);
       } else if (failCount === 1) {
         const failedCat = failedCategories[0]!;
-        if (failedCat === 'user') {
-          incrementAllFields(conn);
-        } else {
-          const val = conn[failedCat as keyof LogEntry];
-          if (typeof val === 'string') updateMapCount(failedCat, val);
-          userCounts.set(conn.user, (userCounts.get(conn.user) || 0) + 1);
-        }
+        const val = conn[failedCat as keyof LogEntry];
+        if (typeof val === 'string') updateMapCount(failedCat, val);
+        userCounts.set(conn.user, (userCounts.get(conn.user) || 0) + 1);
       }
     }
 
@@ -133,9 +127,21 @@ export function useFilters(
         }
 
         const wasAllSelected = oldVals && current.size === oldVals.size;
-        if (wasAllSelected && current.size !== newVals.size) {
-          newSelected.set(cat, new Set(newVals));
-          changed = true;
+
+        if (wasAllSelected) {
+          if (
+            current.size !== newVals.size ||
+            ![...newVals].every((v) => current.has(v))
+          ) {
+            newSelected.set(cat, new Set(newVals));
+            changed = true;
+          }
+        } else {
+          const pruned = new Set([...current].filter((v) => newVals.has(v)));
+          if (pruned.size !== current.size) {
+            newSelected.set(cat, pruned);
+            changed = true;
+          }
         }
       }
 

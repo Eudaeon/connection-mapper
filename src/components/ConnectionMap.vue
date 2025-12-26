@@ -278,7 +278,7 @@ function updateMap(shouldFitBounds = false) {
 
 onMounted(() => {
   initMap();
-  updateMap(true);
+  updateMap(false);
   const themeObserver = new MutationObserver(() => {
     if (map && (map as any).tileLayer) {
       const isDark = document.documentElement.classList.contains('dark');
@@ -299,11 +299,11 @@ onMounted(() => {
 
 watch(
   () => props.users,
-  (newUsers) => {
+  () => {
     zoomCache.clear();
     const isNewData = allUsers.value !== lastAllUsersRef;
     if (isNewData) lastAllUsersRef = allUsers.value;
-    debouncedUpdate(isNewData && newUsers.length > 0);
+    debouncedUpdate(false);
   },
   { deep: true }
 );
