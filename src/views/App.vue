@@ -9,8 +9,14 @@ import FilterPanel from '../components/FilterPanel.vue';
 import TimelinePanel from '../components/TimelinePanel.vue';
 import ProgressRing from '../components/ProgressRing.vue';
 
-const { filteredUsers, isLoading, statusMessage, progressValue, progressText, errorMessage } =
-  useConnectionData();
+const {
+  filteredUsers,
+  isLoading,
+  statusMessage,
+  progressValue,
+  progressText,
+  errorMessage,
+} = useConnectionData();
 
 function clearError() {
   errorMessage.value = '';
@@ -24,7 +30,10 @@ onMounted(() => {
 
   const onRejection = (ev: PromiseRejectionEvent) => {
     const reason = ev?.reason;
-    errorMessage.value = (reason && reason.message) || String(reason) || 'An unexpected promise rejection occurred.';
+    errorMessage.value =
+      (reason && reason.message) ||
+      String(reason) ||
+      'An unexpected promise rejection occurred.';
   };
 
   window.addEventListener('error', onErr as EventListener);
@@ -40,8 +49,14 @@ onMounted(() => {
 
   onUnmounted(() => {
     window.removeEventListener('error', onErr as EventListener);
-    window.removeEventListener('unhandledrejection', onRejection as EventListener);
-    window.removeEventListener('app:console-error', onConsoleError as EventListener);
+    window.removeEventListener(
+      'unhandledrejection',
+      onRejection as EventListener
+    );
+    window.removeEventListener(
+      'app:console-error',
+      onConsoleError as EventListener
+    );
   });
 });
 </script>
@@ -68,7 +83,10 @@ onMounted(() => {
     </div>
 
     <div v-if="errorMessage" class="loading-overlay error-overlay">
-      <div class="loader-content" :style="{ '--color-slider-fill': 'var(--color-error)' }">
+      <div
+        class="loader-content"
+        :style="{ '--color-slider-fill': 'var(--color-error)' }"
+      >
         <ProgressRing :value="100" :text="'!'" :size="80" :stroke-width="6" />
         <div class="error-content">
           <div class="error-text">{{ errorMessage }}</div>
