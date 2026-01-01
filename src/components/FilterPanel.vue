@@ -427,7 +427,7 @@ function getVersionOnly(fullValue: string, category: string): string {
 
 #filter-panel {
   padding: 0.5rem 0.75rem;
-  width: 240px;
+  width: 280px;
   max-height: 60vh;
   display: flex;
   flex-direction: column;

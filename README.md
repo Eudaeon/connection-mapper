@@ -1,52 +1,83 @@
 # Connection Mapper
 
-A web application to visualize user sign-in locations from CSV logs on an interactive map.
+<div align="center">
 
-This tool parses security logs, geolocates all IP addresses, and plots them, providing a visual overview of connection origins.
+[![GitHub stars](https://img.shields.io/github/stars/Eudaeon/connection-mapper?style=for-the-badge)](https://github.com/Eudaeon/connection-mapper/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/Eudaeon/connection-mapper?style=for-the-badge)](https://github.com/Eudaeon/connection-mapper/network)
+[![GitHub issues](https://img.shields.io/github/issues/Eudaeon/connection-mapper?style=for-the-badge)](https://github.com/Eudaeon/connection-mapper/issues)
+[![GitHub license](https://img.shields.io/github/license/Eudaeon/connection-mapper?style=for-the-badge)](LICENSE)
 
-## Features
+**A web application to visualize user sign-in locations from CSV logs on an interactive map.**
 
-- Displays clustered user connections on a Leaflet.js map.
-- Supports both Azure Sign-in and Audit log CSV formats.
-- Automatically fetches latitude and longitude for all unique IPs.
-- Supports dynamic connection filtering using collapsible UI elements:
-  - User Panel: Toggle individual users or select/deselect all.
-  - Filter Panel: Filter by application, OS, browser, compliance status, and more.
-  - Timeline Panel: Select a specific time range using a dual-handle slider.
-- Generate a compressed URL to share the current map data and view with others.
-- Switch between light and dark modes.
+</div>
 
-## Installation
+## 📖 Overview
 
-Clone the repository:
+This interactive application is designed to simplify the analysis of security logs by providing a visual overview of connection origins. It enables users to transform static CSV logs from Azure Sign-in or Purview Audit formats into an interactive geolocated map.
 
-```sh
+The application operates entirely in the browser, parsing local CSV data and geolocating IP addresses using [ip-api.com](https://ip-api.com/). It features a filtering engine that allows for real-time data slicing by user, time ranges, application, device properties, and more.
+
+![Application](img/app.png)
+
+Once a view is configured, users can generate a compressed URL to share the exact map state and geolocated data with others.
+
+> [!WARNING]
+> Browsers have a hard limit for URL lengths, often ranging from a few thousand to tens of thousands of characters. This limits the amount of data that can be shared via a link.
+
+## 📦 Setup
+
+### Installation
+
+Clone the repository and install dependencies with:
+
+```bash
 git clone https://github.com/Eudaeon/connection-mapper.git
 cd connection-mapper
-```
-
-Install dependencies:
-
-```sh
 npm install
 ```
 
-## Scripts
+### Serve
 
-Format all files using Prettier:
+To start a local Vite development server:
 
-```sh
-npm run format
-```
-
-Start a local Vite development server:
-
-```sh
+```bash
 npm run dev
 ```
 
-Type-check and build the application:
+### Build
 
-```sh
+To type-check and build the application for production:
+
+```bash
 npm run build
 ```
+
+## 🔧 Usage
+
+Export your sign-in or audit logs as a CSV and click the "Upload" button in the top control bar to populate the interactive map.
+
+### Azure Sign-in (up to 1 month)
+
+Go to [Microsoft Entra ID Sign-in](https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserManagementMenuBlade/~/SignIns). You can filter for a specific user or include all users, and adjust the date range as needed.
+
+To export the data, click "Download", select "Download CSV", and choose the button located within the InteractiveSignIns section.
+
+![Azure Sign-in](img/azure-sign-in.png)
+
+### Purview Audit (up to 6 months)
+
+Go to [Microsoft Purview Audit](https://purview.microsoft.com/audit). You may define your target users and set the operation names to `UserLoggedIn,UserLoginFailed` to reduce the CSV size.
+
+While the application filters these automatically, narrowing the search here ensures that the exported CSV is smaller, and thus processed faster by the application.
+
+![Purview Audit](img/purview-audit.png)
+
+---
+
+<div align="center">
+
+**⭐ Star this repo if you find it helpful!**
+
+Made with ❤️ by [Eudaeon](https://github.com/Eudaeon)
+
+</div>

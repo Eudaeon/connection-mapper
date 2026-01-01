@@ -1,5 +1,7 @@
+@import url('https://fonts.googleapis.com/css2?family=Libre+Franklin:ital,wght@0,100..900;1,100..900&display=swap');
+
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Libre Franklin', sans-serif;
   line-height: 1.5;
   font-weight: 400;
   font-synthesis: none;
@@ -19,6 +21,7 @@
   --color-border: #e5e7eb;
   --color-slider-track: #e5e7eb;
   --color-slider-fill: #3b82f6;
+  --color-error: #ef4444;
   --color-thumb-bg: #374151;
   --color-thumb-border: #ffffff;
 }
@@ -37,6 +40,7 @@ html.dark {
   --color-border: #4b5563;
   --color-slider-track: #4b5563;
   --color-slider-fill: #3b82f6;
+  --color-error: #f87171;
   --color-thumb-bg: #e5e7eb;
   --color-thumb-border: #1f2937;
 }
@@ -124,7 +128,6 @@ body {
 .leaflet-popup-content {
   margin: 1.5rem 1.5rem;
   height: 300px;
-  width: 320px;
   overflow-y: auto;
   padding-right: 16px;
 }

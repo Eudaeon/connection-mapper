@@ -322,9 +322,6 @@ watch(
   left: 0;
   z-index: 1;
 }
-:deep(.map-popup-content) {
-  font-family: system-ui, sans-serif;
-}
 :deep(.user-details summary) {
   cursor: pointer;
   display: flex;
@@ -350,6 +347,12 @@ watch(
   gap: 1rem;
   width: 100%;
 }
+:deep(.connection-header) > *:first-child {
+  max-width: 40%;
+}
+:deep(.connection-header) > *:not(:first-child) {
+  max-width: 60%;
+}
 :deep(.ts-date) {
   font-weight: 600;
   color: var(--color-text);
@@ -361,5 +364,8 @@ watch(
   padding: 2px 6px;
   border-radius: 4px;
   word-break: break-all;
+}
+:deep(.cat-label) {
+  font-weight: 600;
 }
 </style>
