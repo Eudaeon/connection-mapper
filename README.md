@@ -38,7 +38,7 @@ npm install
 
 ### Serve
 
-To start a local Vite development server:
+To start a local development server:
 
 ```bash
 npm run dev
