@@ -17,7 +17,11 @@ This interactive application is designed to simplify the analysis of security lo
 
 The application operates entirely in the browser, parsing local CSV data and geolocating IP addresses using [ip-api.com](https://ip-api.com/). It features a filtering engine that allows for real-time data slicing by user, time ranges, application, device properties, and more.
 
+<div align="center">
+
 ![Application](img/app.png)
+
+</div>
 
 Once a view is configured, users can generate a compressed URL to share the exact map state and geolocated data with others.
 
@@ -62,7 +66,11 @@ Go to [Microsoft Entra ID Sign-in](https://entra.microsoft.com/#view/Microsoft_A
 
 To export the data, click "Download", select "Download CSV", and choose the button located within the InteractiveSignIns section.
 
+<div align="center">
+
 ![Azure Sign-in](img/azure-sign-in.png)
+
+</div>
 
 ### Purview Audit (up to 6 months)
 
@@ -70,7 +78,11 @@ Go to [Microsoft Purview Audit](https://purview.microsoft.com/audit). You may de
 
 While the application filters these automatically, narrowing the search here ensures that the exported CSV is smaller, and thus processed faster by the application.
 
+<div align="center">
+
 ![Purview Audit](img/purview-audit.png)
+
+</div>
 
 ---
 
